@@ -1,49 +1,66 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getServiceClient } from "@/lib/supabase-admin";
+import { getPublicSettings } from "@/lib/public-settings";
+import { verifyTurnstileToken } from "@/lib/turnstile";
 import { Resend } from "resend";
 import VerificationEmail from "@/components/emails/VerificationEmail";
 import { render } from "@react-email/render";
 
-// Initialize Supabase client with Service Role Key
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Shared service-role client (see src/lib/supabase-admin.ts)
+const supabase = getServiceClient();
 
 // Initialize Resend
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req: NextRequest) {
   try {
-    const { email } = await req.json();
-
-    if (!email) {
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== "object") {
       return NextResponse.json(
-        { message: "Email is required." },
+        { message: "Invalid request payload." },
         { status: 400 }
       );
     }
 
-    // 1. Fetch Settings
-    const { data: settingsData } = await supabase
-      .from("system_settings")
-      .select("key, value")
-      .in("key", ["enable_public_registration", "email_sender_name"]);
+    const { email, captchaToken } = body;
 
-    const settings: Record<string, string> = {};
-    if (settingsData) {
-      settingsData.forEach((s) => {
-        try {
-           const parsed = JSON.parse(s.value);
-           settings[s.key] = typeof parsed === 'string' ? parsed : String(parsed);
-        } catch {
-           settings[s.key] = s.value;
-        }
-      });
+    if (!email || typeof email !== "string" || !email.trim()) {
+      return NextResponse.json(
+        { message: "A valid email is required." },
+        { status: 400 }
+      );
     }
 
+    const normalizedEmail = email.trim().toLowerCase().slice(0, 255);
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(normalizedEmail)) {
+      return NextResponse.json(
+        { message: "Please enter a valid email address." },
+        { status: 400 }
+      );
+    }
+
+    // Anti-abuse: bots must not be able to drain the Resend free quota
+    // (100/day) by spraying this endpoint.
+    if (!captchaToken || typeof captchaToken !== "string") {
+      return NextResponse.json(
+        { message: "Captcha verification required." },
+        { status: 400 }
+      );
+    }
+    const isCaptchaValid = await verifyTurnstileToken(captchaToken);
+    if (!isCaptchaValid) {
+      return NextResponse.json(
+        { message: "Captcha verification failed. Please try again." },
+        { status: 400 }
+      );
+    }
+
+    // 1. Fetch Settings (cross-request cached, see lib/public-settings)
+    const settings = await getPublicSettings();
+
     // 2. Check Feature Toggle
-    if (settings["enable_public_registration"] === "false") {
+    if (settings.enable_public_registration === "false") {
       return NextResponse.json(
         { message: "New newsletter registrations are currently disabled." },
         { status: 403 }
@@ -56,14 +73,14 @@ export async function POST(req: NextRequest) {
     // We prioritize the environment variable RESEND_FROM_EMAIL if set.
     // Otherwise, we fallback to 'onboarding@resend.dev'.
     const senderEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
-    const senderName = settings["email_sender_name"] || "KaizenHR";
+    const senderName = settings.email_sender_name || "KaizenHR";
     const fromAddress = `${senderName} <${senderEmail}>`;
 
     // 4. Check existing subscriber
-    const { data: existingSubscriber, error: existingError } = await supabase
+    const { data: existingSubscriber } = await supabase
       .from("newsletter_subscribers")
-      .select("status, id")
-      .eq("email", email)
+      .select("status, id, created_at")
+      .eq("email", normalizedEmail)
       .single();
 
     if (existingSubscriber) {
@@ -73,10 +90,21 @@ export async function POST(req: NextRequest) {
           { status: 409 }
         );
       }
-      // If unverified, we check if we should resend verification or just notify
+      // Resend cooldown: don't re-send verification emails more than
+      // once per 15 minutes for the same address (quota protection).
       if (existingSubscriber.status === "unverified") {
-        // Ideally, you might want a resend logic here. 
-        // For now, we return the standard message.
+        const createdAt = existingSubscriber.created_at
+          ? new Date(existingSubscriber.created_at).getTime()
+          : 0;
+        if (Date.now() - createdAt < 15 * 60 * 1000) {
+          return NextResponse.json(
+            {
+              message:
+                "You have already signed up. Please check your email to verify.",
+            },
+            { status: 429 }
+          );
+        }
         return NextResponse.json(
           {
             message:
@@ -90,7 +118,7 @@ export async function POST(req: NextRequest) {
     // 5. Insert new subscriber (Unverified)
     const { data: newSubscriber, error: insertError } = await supabase
       .from("newsletter_subscribers")
-      .insert({ email: email, status: "unverified" })
+      .insert({ email: normalizedEmail, status: "unverified" })
       .select("verification_token, id")
       .single();
 
@@ -110,7 +138,7 @@ export async function POST(req: NextRequest) {
     // 7. Send Verification Email
     const { data, error } = await resend.emails.send({
       from: fromAddress, 
-      to: email,
+      to: normalizedEmail,
       subject: "Verify Your Newsletter Subscription",
       html: emailHtml,
     });

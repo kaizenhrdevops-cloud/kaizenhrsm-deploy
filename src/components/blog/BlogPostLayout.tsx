@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { createBrowserClient } from "@supabase/ssr";
+import { getBrowserClient } from "@/lib/client";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { StickySidebar } from "./StickySidebar";
 import PostRenderer from "./PostRenderer";
-import { getPublicSettings } from "@/lib/public-settings"; // Import the server action
+import { useSettings } from "@/components/layout/SettingsProvider";
 
 // Type definitions... (Keep existing types)
 type Post = {
@@ -49,24 +49,16 @@ export default function BlogPostLayout({
   const [toc, setToc] = useState<TOCItem[]>([]);
   const [activeSection, setActiveSection] = useState<string>("");
 
-  // --- NEW: State for Default Author ---
-  const [defaultAuthorName, setDefaultAuthorName] = useState("KaizenHR Team");
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  // Default author comes from layout-provided settings (no own fetch).
+  const { blog_default_author_name } = useSettings();
+  const [defaultAuthorName, setDefaultAuthorName] = useState(
+    blog_default_author_name || "KaizenHR Team"
   );
 
+  const supabase = getBrowserClient();
+
   useEffect(() => {
-    // Fetch settings and post in parallel
-    const init = async () => {
-      const settings = await getPublicSettings();
-      if (settings.blog_default_author_name) {
-        setDefaultAuthorName(settings.blog_default_author_name);
-      }
-      await fetchPost();
-    };
-    init();
+    fetchPost();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, category]);
 
@@ -82,7 +74,7 @@ export default function BlogPostLayout({
       const { data: postData, error: postError } = await supabase
         .from("posts")
         .select(
-          `*, 
+          `id, title, slug, excerpt, featured_image, published_at, updated_at, author_id,
            author:profiles!posts_author_id_fkey(full_name, email)`
         )
         .eq("slug", slug)
@@ -97,13 +89,18 @@ export default function BlogPostLayout({
       if (postData) {
         const { data: blocksData, error: blocksError } = await supabase
           .from("post_blocks")
-          .select("*")
+          .select("id, post_id, type, content, order_index")
           .eq("post_id", postData.id)
           .order("order_index", { ascending: true });
 
         if (blocksError) throw blocksError;
 
-        setPost(postData);
+        // Supabase types the to-one author join as an array; normalize it.
+        const rawAuthor = (postData as any).author;
+        setPost({
+          ...(postData as any),
+          author: Array.isArray(rawAuthor) ? rawAuthor[0] : rawAuthor,
+        });
         setBlocks(blocksData || []);
       }
     } catch (error) {

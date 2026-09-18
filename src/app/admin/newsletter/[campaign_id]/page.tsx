@@ -12,14 +12,17 @@ export type CampaignWithDetails =
     profiles: { full_name: string | null } | null;
     posts: { title: string | null; slug: string; category: string } | null;
   };
-export type SendLog =
-  Database["public"]["Tables"]["newsletter_send_log"]["Row"];
+export type SendLog = Pick<
+  Database["public"]["Tables"]["newsletter_send_log"]["Row"],
+  "id" | "email" | "status" | "sent_at" | "error_message" | "created_at"
+>;
 
 export default async function CampaignDetailPage({
   params,
 }: {
-  params: { campaign_id: string };
+  params: Promise<{ campaign_id: string }>;
 }) {
+  const { campaign_id } = await params;
   const supabase = await createClient();
 
   // 1. Check user and role
@@ -54,14 +57,14 @@ export default async function CampaignDetailPage({
       profiles ( full_name )
     `
     )
-    .eq("id", params.campaign_id)
+    .eq("id", campaign_id)
     .single();
 
   // 3. Fetch All Send Logs for this campaign
   const { data: logs, error: logsError } = await supabase
     .from("newsletter_send_log")
-    .select("*")
-    .eq("campaign_id", params.campaign_id)
+    .select("id, email, status, sent_at, error_message, created_at")
+    .eq("campaign_id", campaign_id)
     .order("created_at", { ascending: true });
 
   if (campaignError || !campaign) {

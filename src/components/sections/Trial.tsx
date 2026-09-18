@@ -1,5 +1,6 @@
 // src/components/sections/Trial.tsx
 import React from "react";
+import Image from "next/image";
 import Link from "next/link";
 import Container from "../layout/Container";
 import { Check, ArrowRight } from "lucide-react";
@@ -8,8 +9,7 @@ import { getPublicSettings } from "@/lib/public-settings";
 const Trial = async () => {
   const settings = await getPublicSettings();
   const imageSrc =
-    settings.marketing_trial_image ||
-    "https://www.kaizenhr.my/wp-content/uploads/2015/01/business.webp";
+    settings.marketing_trial_image || "/images/hrsm-modules/personnel_hub.png";
 
   return (
     <div className="py-24 bg-white overflow-hidden">
@@ -86,9 +86,13 @@ const Trial = async () => {
           {/* Right Column: Image Area */}
           <div className="relative flex justify-center lg:pl-12">
             <div className="relative w-full max-w-md">
-              <img
+              <Image
                 src={imageSrc}
                 alt="HR Team Collaboration"
+                width={800}
+                height={600}
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                loading="lazy"
                 className="w-full h-auto rounded-2xl object-cover"
               />
             </div>

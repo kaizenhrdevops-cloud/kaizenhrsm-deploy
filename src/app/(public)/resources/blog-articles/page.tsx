@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { createBrowserClient } from "@supabase/ssr";
+import { getBrowserClient } from "@/lib/client";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import Pagination from "@/components/ui/Pagination";
+import EmptyState from "@/components/ui/EmptyState";
 import { ArrowRight, FileText } from "lucide-react";
 
 type Post = {
@@ -12,7 +14,7 @@ type Post = {
   slug: string;
   excerpt: string | null;
   featured_image: string | null;
-  published_at: string;
+  published_at: string | null;
 };
 
 export default function BlogArticlesPage() {
@@ -22,10 +24,7 @@ export default function BlogArticlesPage() {
   const [totalPages, setTotalPages] = useState(0);
   const postsPerPage = 7;
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = getBrowserClient();
 
   useEffect(() => {
     fetchPosts();
@@ -37,7 +36,7 @@ export default function BlogArticlesPage() {
       // Get total count
       const { count } = await supabase
         .from("posts")
-        .select("*", { count: "exact", head: true })
+        .select("id", { count: "exact", head: true })
         .eq("category", "blog")
         .eq("status", "published");
 
@@ -90,23 +89,19 @@ export default function BlogArticlesPage() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto my-auto px-4 sm:px-6 lg:px-8 py-12">
         {posts.length === 0 ? (
-          // Empty State
-          <div className="text-center py-20">
-            <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-2xl font-semibold text-gray-800 mb-2">
-              No posts found
-            </h2>
-            <p className="text-gray-600 mb-6">
-              There are no blog articles published yet. Check back soon!
-            </p>
-            <a
-              href="/resources/hr-checklist"
-              className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium"
-            >
-              Explore HR Checklist
-              <ArrowRight className="ml-2 w-4 h-4" />
-            </a>
-          </div>
+          <EmptyState
+            title="No posts found"
+            message="There are no blog articles published yet. Check back soon!"
+            action={
+              <a
+                href="/resources/hr-checklist"
+                className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Explore HR Checklist
+                <ArrowRight className="ml-2 w-4 h-4" />
+              </a>
+            }
+          />
         ) : (
           <>
             {/* Featured Post (First Post) */}
@@ -184,42 +179,12 @@ export default function BlogArticlesPage() {
               </div>
             )}
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex justify-center items-center gap-2">
-                <button
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                
-                <div className="flex gap-2">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`px-4 py-2 rounded-md ${
-                        currentPage === page
-                          ? "bg-blue-600 text-white"
-                          : "border border-gray-300 hover:bg-gray-50"
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
-                </div>
-
-                <button
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-            )}
+            {/* Shared pagination (see src/components/ui/Pagination.tsx) */}
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onChange={setCurrentPage}
+            />
           </>
         )}
       </div>

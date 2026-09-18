@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from "react";
+import { Toaster } from "react-hot-toast";
 import AdminNavbar from "@/components/admin/AdminNavbar";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 
@@ -15,6 +16,8 @@ export default function AdminLayout({
   return (
     // Main container now stacks vertically
     <div className="flex flex-col h-screen bg-gray-100 dark:bg-gray-900">
+      {/* Single toast system for all of /admin (react-hot-toast) */}
+      <Toaster position="top-center" />
       {/* Navbar is now a direct child, it will be full-width by default */}
       <AdminNavbar onMenuClick={() => setIsSidebarOpen(true)} />
 

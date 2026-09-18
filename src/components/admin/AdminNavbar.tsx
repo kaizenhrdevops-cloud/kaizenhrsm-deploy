@@ -1,6 +1,6 @@
 "use client";
 
-import { createBrowserClient } from "@supabase/ssr";
+import { getBrowserClient } from "@/lib/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
@@ -17,10 +17,7 @@ export default function AdminNavbar({
   const [user, setUser] = useState<User | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = getBrowserClient();
 
   useEffect(() => {
     const getUser = async () => {

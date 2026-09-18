@@ -1,61 +1,13 @@
 // src/app/api/admin/contacts/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
+import { getServiceClient } from "@/lib/supabase-admin";
+import { requireAdmin } from "@/lib/api-auth";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabaseAdmin = getServiceClient();
 
-// Helper to get authenticated user
+// Shared admin auth check (see src/lib/api-auth.ts)
 async function getAuthUser(req: NextRequest) {
-  const cookieStore = await cookies();
-
-  // Get all cookies and find auth token
-  const allCookies = cookieStore.getAll();
-  const authCookie = allCookies.find(
-    (cookie) =>
-      cookie.name.includes("auth-token") &&
-      !cookie.name.includes("code-verifier")
-  );
-
-  if (!authCookie) {
-    return null;
-  }
-
-  const { createServerClient } = await import("@supabase/ssr");
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-      },
-    }
-  );
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) return null;
-
-  // Get user profile with role
-  const { data: profile } = await supabaseAdmin
-    .from("profiles")
-    .select("role, status")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile || profile.status !== "active") {
-    return null;
-  }
-
-  return { user, profile };
+  return requireAdmin(req);
 }
 
 // GET - Fetch all contacts
@@ -69,8 +21,11 @@ export async function GET(req: NextRequest) {
 
     const { data: contacts, error } = await supabaseAdmin
       .from("contacts")
-      .select("*") 
-      .order("created_at", { ascending: false });
+      .select(
+        "id, full_name, contact_number, company, business_email, company_size, message, status, created_at, updated_at, last_reply_at, is_starred"
+      )
+      .order("created_at", { ascending: false })
+      .limit(500);
 
     if (error) {
       console.error("Error fetching contacts:", error);

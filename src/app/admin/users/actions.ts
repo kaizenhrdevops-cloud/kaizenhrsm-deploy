@@ -4,19 +4,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { getServiceClient } from "@/lib/supabase-admin";
 
 // Helper function to create admin supabase client
 async function createAdminClient() {
-  const cookieStore = await cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: {
-        get: (name: string) => cookieStore.get(name)?.value,
-      },
-    }
-  );
+  return getServiceClient();
 }
 
 // Helper function to check if current user is super_admin

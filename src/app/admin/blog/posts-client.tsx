@@ -2,8 +2,9 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
-import { createBrowserClient } from "@supabase/ssr";
+import { getBrowserClient } from "@/lib/client";
 import {
   PlusCircle,
   Edit,
@@ -52,10 +53,7 @@ export default function PostsClient({ posts }: { posts: PostWithAuthor[] }) {
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
   const [postToSend, setPostToSend] = useState<PostWithAuthor | null>(null);
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = getBrowserClient();
 
   // --- 2. UPDATE THIS useEffect TO FETCH THE ROLE ---
   useEffect(() => {
@@ -85,7 +83,7 @@ export default function PostsClient({ posts }: { posts: PostWithAuthor[] }) {
     if (result.success && result.postId) {
       router.push(`/admin/editor/${result.postId}`);
     } else {
-      alert(result.message || "Failed to create post.");
+      toast.error(result.message || "Failed to create post.");
       setIsCreating(false);
     }
   };
@@ -106,7 +104,7 @@ export default function PostsClient({ posts }: { posts: PostWithAuthor[] }) {
     setIsDeleting(true);
     const result = await deletePost(postToDelete.id);
     if (!result.success) {
-      alert(result.message || "Failed to delete post.");
+      toast.error(result.message || "Failed to delete post.");
     }
     setIsDeleting(false);
     setIsDeleteModalOpen(false);

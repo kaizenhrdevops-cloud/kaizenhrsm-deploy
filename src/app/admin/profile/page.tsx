@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createBrowserClient } from "@supabase/ssr";
+import { getBrowserClient } from "@/lib/client";
 import {
   User,
   Mail,
@@ -14,7 +14,8 @@ import {
 import { useRouter } from "next/navigation";
 import { type ProfileData } from "@/types/profile";
 import EditProfileModal from "@/components/admin/EditProfileModal";
-import Toast from "@/components/shared/Toast";
+import Button from "@/components/ui/Button";
+import toast from "react-hot-toast";
 import { updateProfile } from "./actions";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 
@@ -86,18 +87,10 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [toast, setToast] = useState<{
-    show: boolean;
-    message: string;
-    type: "success" | "error";
-  }>({ show: false, message: "", type: "success" });
 
   const router = useRouter();
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = getBrowserClient();
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -153,17 +146,9 @@ export default function ProfilePage() {
     if (result.success) {
       setProfile((prev) => (prev ? { ...prev, full_name: newName } : null));
       setIsEditModalOpen(false);
-      setToast({
-        show: true,
-        message: result.message,
-        type: "success",
-      });
+      toast.success(result.message);
     } else {
-      setToast({
-        show: true,
-        message: result.message,
-        type: "error",
-      });
+      toast.error(result.message);
     }
   };
 
@@ -180,12 +165,13 @@ export default function ProfilePage() {
           <p className="mb-6 text-slate-600 dark:text-slate-400">
             {error || "Unable to load your profile data."}
           </p>
-          <button
+          <Button
+            variant="primary"
+            className="w-full"
             onClick={() => router.push("/admin/dashboard")}
-            className="w-full px-6 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
           >
             Go to Dashboard
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -193,13 +179,6 @@ export default function ProfilePage() {
 
   return (
     <>
-      {toast.show && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast({ ...toast, show: false })}
-        />
-      )}
 
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}

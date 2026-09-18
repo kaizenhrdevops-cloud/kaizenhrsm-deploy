@@ -6,10 +6,13 @@ import type { Database } from "@/types/supabase";
 import FeaturedImageUploader from "./featured-image-uploader";
 import { autoSaveDraft } from "../../posts/actions";
 import { BlockWrapper } from "./block-wrapper";
-import ParagraphBlock from "./paragraph-block";
+import { createDefaultContent, type BlockType } from "./block-defaults";
 import dynamic from "next/dynamic";
 
 // Dynamically import the other blocks to reduce initial bundle size
+const ParagraphBlock = dynamic(() => import("./paragraph-block"), {
+  ssr: false,
+});
 const HeadingBlock = dynamic(() => import("./heading-block"));
 const ImageBlock = dynamic(() => import("./image-block"));
 const VideoBlock = dynamic(() => import("./video-block"));
@@ -130,155 +133,12 @@ export default function Step3Content({
     useSensor(KeyboardSensor)
   );
 
-  const handleAddBlock = (
-    type:
-      | "paragraph"
-      | "heading"
-      | "image"
-      | "video"
-      | "quote"
-      | "code"
-      | "table"
-  ) => {
-    let defaultContent: any = {};
-
-    switch (type) {
-      case "paragraph":
-        defaultContent = {
-          type: "doc",
-          content: [{ type: "paragraph" }],
-        };
-        break;
-      case "heading":
-        defaultContent = { level: 2, text: "" };
-        break;
-      case "image":
-        defaultContent = { url: "", alt: "", caption: "" };
-        break;
-      case "video":
-        defaultContent = { url: "", caption: "" };
-        break;
-      case "quote":
-        defaultContent = { text: "", author: "" };
-        break;
-      case "code":
-        defaultContent = { code: "", language: "javascript" };
-        break;
-      case "table":
-        defaultContent = {
-          type: "doc",
-          content: [
-            {
-              type: "table",
-              content: [
-                {
-                  type: "tableRow",
-                  content: [
-                    {
-                      type: "tableHeader",
-                      content: [
-                        {
-                          type: "paragraph",
-                          content: [{ type: "text", text: "Header 1" }],
-                        },
-                      ],
-                    },
-                    {
-                      type: "tableHeader",
-                      content: [
-                        {
-                          type: "paragraph",
-                          content: [{ type: "text", text: "Header 2" }],
-                        },
-                      ],
-                    },
-                    {
-                      type: "tableHeader",
-                      content: [
-                        {
-                          type: "paragraph",
-                          content: [{ type: "text", text: "Header 3" }],
-                        },
-                      ],
-                    },
-                  ],
-                },
-                {
-                  type: "tableRow",
-                  content: [
-                    {
-                      type: "tableCell",
-                      content: [
-                        {
-                          type: "paragraph",
-                          content: [{ type: "text", text: "Cell 1" }],
-                        },
-                      ],
-                    },
-                    {
-                      type: "tableCell",
-                      content: [
-                        {
-                          type: "paragraph",
-                          content: [{ type: "text", text: "Cell 2" }],
-                        },
-                      ],
-                    },
-                    {
-                      type: "tableCell",
-                      content: [
-                        {
-                          type: "paragraph",
-                          content: [{ type: "text", text: "Cell 3" }],
-                        },
-                      ],
-                    },
-                  ],
-                },
-                {
-                  type: "tableRow",
-                  content: [
-                    {
-                      type: "tableCell",
-                      content: [
-                        {
-                          type: "paragraph",
-                          content: [{ type: "text", text: "Cell 4" }],
-                        },
-                      ],
-                    },
-                    {
-                      type: "tableCell",
-                      content: [
-                        {
-                          type: "paragraph",
-                          content: [{ type: "text", text: "Cell 5" }],
-                        },
-                      ],
-                    },
-                    {
-                      type: "tableCell",
-                      content: [
-                        {
-                          type: "paragraph",
-                          content: [{ type: "text", text: "Cell 6" }],
-                        },
-                      ],
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        };
-        break;
-    }
-
+  const handleAddBlock = (type: BlockType) => {
     const newBlock: PostBlock = {
       id: crypto.randomUUID(),
       post_id: post.id,
       type: type,
-      content: defaultContent,
+      content: createDefaultContent(type),
       order_index: blocks.length,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -289,7 +149,6 @@ export default function Step3Content({
   };
 
   const handleBlockChange = (blockId: string, newContent: any) => {
-    console.log("RAW CONTENT FROM PARAGRAPH BLOCK:", newContent); // ADD THIS
 
     setBlocks((prev) =>
       prev.map((block) =>

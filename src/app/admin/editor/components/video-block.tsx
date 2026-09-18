@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from "react";
+import toast from "react-hot-toast";
 import { MoreHorizontal, Copy, Trash2, Youtube } from "lucide-react";
 
 interface VideoBlockProps {
@@ -51,7 +52,7 @@ export default function VideoBlock({
     if (embedUrl) {
       onChange({ ...content, url: embedUrl });
     } else {
-      alert("Please enter a valid YouTube URL");
+      toast.error("Please enter a valid YouTube URL");
     }
   };
 

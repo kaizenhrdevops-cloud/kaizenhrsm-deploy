@@ -2,7 +2,8 @@
 "use server";
 
 import { createClient } from "@/lib/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { PUBLIC_SETTINGS_TAG } from "@/lib/cache-tags";
 
 type SystemSettings = {
   [key: string]: string;
@@ -129,7 +130,9 @@ export async function updateSystemSetting(key: string, value: string) {
   });
 
   revalidatePath("/admin/settings");
-  revalidatePath("/", "layout"); 
+  revalidatePath("/", "layout");
+  // Instantly invalidate the cached public settings (see lib/public-settings)
+  revalidateTag(PUBLIC_SETTINGS_TAG); 
   
   return { success: true, message: "Setting updated successfully" };
 }

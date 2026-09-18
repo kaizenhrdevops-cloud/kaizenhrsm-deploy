@@ -2,33 +2,37 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@/lib/server";
 import type { Database } from "@/types/supabase";
 import { nanoid } from "nanoid";
 
-async function createClient() {
-  const cookieStore = await cookies();
-  return createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get: (name: string) => cookieStore.get(name)?.value,
-      },
-    }
-  );
-}
-
-export async function createPost(category: "blog" | "development") {
+async function requireStaff() {
   const supabase = await createClient();
-
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  if (!user) return { supabase, user: null as null, error: "Not authenticated" };
 
-  if (!user) {
-    return { success: false, message: "Not authenticated" };
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, status")
+    .eq("id", user.id)
+    .single();
+
+  if (
+    !profile ||
+    profile.status !== "active" ||
+    !["admin", "super_admin"].includes(profile.role || "")
+  ) {
+    return { supabase, user: null as null, error: "Access denied" };
+  }
+  return { supabase, user, error: null };
+}
+
+export async function createPost(category: "blog" | "development") {
+  const { supabase, user, error: authError } = await requireStaff();
+  if (authError || !user) {
+    return { success: false, message: authError || "Unauthorized" };
   }
 
   const defaultTitle = "Untitled Post";
@@ -105,10 +109,12 @@ export async function getAllPosts() {
 }
 
 export async function deletePost(postId: string) {
-  const supabase = await createClient();
+  const { supabase, user, error: authError } = await requireStaff();
+  if (authError || !user) {
+    return { success: false, message: authError || "Unauthorized" };
+  }
 
   // Get post title *before* deleting for the log
-  const { data: { user } } = await supabase.auth.getUser();
   const { data: postToLog } = await supabase
     .from("posts")
     .select("title")
@@ -123,17 +129,15 @@ export async function deletePost(postId: string) {
   }
 
   // --- (FIXED) ADD AUDIT LOG ---
-  if (user) {
-    await supabase.from("admin_audit_log").insert({
-      admin_id: user.id,
-      action: "post.delete",
-      details: {
-        message: `Deleted post: ${postToLog?.title || postId}`,
-        post_id: postId,
-        deleted_title: postToLog?.title,
-      },
-    });
-  }
+  await supabase.from("admin_audit_log").insert({
+    admin_id: user.id,
+    action: "post.delete",
+    details: {
+      message: `Deleted post: ${postToLog?.title || postId}`,
+      post_id: postId,
+      deleted_title: postToLog?.title,
+    },
+  });
   // --- END LOG ---
 
   revalidatePath("/admin/blog");
@@ -178,7 +182,7 @@ export async function getPostById(postId: string) {
 
   const { data: blocks, error: blocksError } = await supabase
     .from("post_blocks")
-    .select("*")
+    .select("id, post_id, type, content, order_index")
     .eq("post_id", postId)
     .order("order_index", { ascending: true });
 
@@ -193,12 +197,14 @@ export async function updatePostCategory(
   postId: string,
   category: "blog" | "development"
 ) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { supabase, user, error: authError } = await requireStaff();
+  if (authError || !user) {
+    return { success: false, message: authError || "Unauthorized" };
+  }
 
   const { error } = await supabase
     .from("posts")
-    .update({ category: category, updated_by: user?.id })
+    .update({ category: category, updated_by: user.id })
     .eq("id", postId);
 
   if (error) {
@@ -212,12 +218,14 @@ export async function updatePostDetails(
   postId: string,
   details: Partial<Database["public"]["Tables"]["posts"]["Row"]>
 ) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { supabase, user, error: authError } = await requireStaff();
+  if (authError || !user) {
+    return { success: false, message: authError || "Unauthorized" };
+  }
 
   const { error } = await supabase
     .from("posts")
-    .update({ ...details, updated_by: user?.id })
+    .update({ ...details, updated_by: user.id })
     .eq("id", postId);
 
   if (error) {
@@ -232,8 +240,10 @@ export async function autoSaveDraft(
   postDetails: Partial<Database["public"]["Tables"]["posts"]["Row"]>,
   blocks: any[]
 ) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { supabase, user, error: authError } = await requireStaff();
+  if (authError || !user) {
+    return { success: false, message: authError || "Unauthorized" };
+  }
   
   const { error: postUpdateError } = await supabase
     .from("posts")
@@ -248,7 +258,7 @@ export async function autoSaveDraft(
       draft_blocks: blocks,
       has_unpublished_changes: true,
       last_autosaved_at: new Date().toISOString(),
-      updated_by: user?.id,
+      updated_by: user.id,
     })
     .eq("id", postId);
 
@@ -261,8 +271,10 @@ export async function autoSaveDraft(
 }
 
 export async function publishPost(postId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { supabase, user, error: authError } = await requireStaff();
+  if (authError || !user) {
+    return { success: false, message: authError || "Unauthorized" };
+  }
 
   // --- (FIXED) ADD LOGIC TO CHECK IF POST IS ALREADY PUBLISHED ---
   const { data: existingPost, error: existingError } = await supabase
@@ -341,7 +353,7 @@ export async function publishPost(postId: string) {
       draft_seo_meta_description: null,
       draft_seo_og_image: null,
       draft_blocks: null,
-      updated_by: user?.id,
+      updated_by: user.id,
     })
     .eq("id", postId);
 
@@ -351,21 +363,18 @@ export async function publishPost(postId: string) {
   }
 
   // --- (FIXED) ADD AUDIT LOG ---
-  if (user) {
-    // Create the descriptive message
-    const message = isRepublish
-      ? `Updated published post: ${finalTitle}`
-      : `Published new post: ${finalTitle}`;
+  const message = isRepublish
+    ? `Updated published post: ${finalTitle}`
+    : `Published new post: ${finalTitle}`;
 
-    await supabase.from("admin_audit_log").insert({
-      admin_id: user.id,
-      action: isRepublish ? "post.update" : "post.publish", // Use a different action
-      details: {
-        message: message,
-        post_id: postId,
-      },
-    });
-  }
+  await supabase.from("admin_audit_log").insert({
+    admin_id: user.id,
+    action: isRepublish ? "post.update" : "post.publish", // Use a different action
+    details: {
+      message: message,
+      post_id: postId,
+    },
+  });
   // --- END LOG ---
 
   revalidatePath("/admin/blog");

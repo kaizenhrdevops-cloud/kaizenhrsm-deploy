@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { createBrowserClient } from "@supabase/ssr";
+import toast from "react-hot-toast";
+import { getBrowserClient } from "@/lib/client";
 import { PlusCircle, Edit, Trash2, Users, Shield, UserX } from "lucide-react";
 import CreateUserModal from "@/components/admin/CreateUserModal";
 import ConfirmDeleteModal from "@/components/shared/ConfirmDeleteModal";
 import UpdateUserModal from "@/components/admin/UpdateUserModal";
 import DataTable, { type Column } from "@/components/shared/DataTable";
+import RoleBadge from "@/components/ui/RoleBadge";
+import Button from "@/components/ui/Button";
 import { type UserProfile } from "@/types/user";
 import { deleteUser } from "./actions";
 import { useRouter } from "next/navigation";
@@ -85,10 +88,7 @@ export default function UserManagementPage() {
 
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = getBrowserClient();
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -172,9 +172,10 @@ export default function UserManagementPage() {
     setIsDeleting(true);
     const result = await deleteUser(userToDelete.id);
     if (result.success) {
+      toast.success("User deleted.");
       fetchUsers();
     } else {
-      alert(`Failed to delete user: ${result.message}`);
+      toast.error(`Failed to delete user: ${result.message}`);
     }
     setIsDeleting(false);
     setIsDeleteModalOpen(false);
@@ -202,11 +203,7 @@ export default function UserManagementPage() {
       key: "role",
       label: "Role",
       sortable: true,
-      render: (user) => (
-        <span className="capitalize">
-          {user.role?.replace("_", " ") || "N/A"}
-        </span>
-      ),
+      render: (user) => <RoleBadge role={user.role} />,
     },
     {
       key: "status",
@@ -249,13 +246,13 @@ export default function UserManagementPage() {
             Access Denied
           </h1>
           <p className="mb-6 text-slate-600 dark:text-slate-400">{error}</p>
-          <button
+          <Button
+            variant="primary"
+            className="w-full"
             onClick={() => router.push("/admin/dashboard")}
-            // FIXED: Removed redundant 'focus-visible:outline'
-            className="w-full px-6 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
           >
             Go to Dashboard
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -326,14 +323,10 @@ export default function UserManagementPage() {
         pagination={true}
         itemsPerPage={10}
         headerActions={
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            // FIXED: Removed redundant 'focus-visible:outline'
-            className="inline-flex items-center justify-center px-4 py-2 space-x-2 text-sm font-semibold text-white transition-colors bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+          <Button variant="primary" onClick={() => setIsCreateModalOpen(true)}>
             <PlusCircle size={20} />
             <span>Create New User</span>
-          </button>
+          </Button>
         }
         actions={(user) => (
           <>

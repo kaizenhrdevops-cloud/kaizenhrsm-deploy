@@ -2,6 +2,7 @@
 "use client";
 
 import { useEditor, EditorContent } from "@tiptap/react";
+import toast from "react-hot-toast";
 import Highlight from "@tiptap/extension-highlight";
 import TextAlign from "@tiptap/extension-text-align";
 import { Table } from "@tiptap/extension-table";
@@ -179,7 +180,7 @@ export default function ParagraphBlock({
 
     const { from, to } = editor.state.selection;
     if (from === to) {
-      alert("Please select some text first.");
+      toast.error("Please select some text first.");
       return;
     }
 

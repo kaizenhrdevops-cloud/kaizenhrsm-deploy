@@ -1,59 +1,13 @@
 // src/app/api/admin/contacts/status/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
+import { getServiceClient } from "@/lib/supabase-admin";
+import { requireAdmin } from "@/lib/api-auth";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabaseAdmin = getServiceClient();
 
-// Helper to get authenticated user
+// Shared admin auth check (see src/lib/api-auth.ts)
 async function getAuthUser(req: NextRequest) {
-  const cookieStore = await cookies();
-
-  const allCookies = cookieStore.getAll();
-  const authCookie = allCookies.find(
-    (cookie) =>
-      cookie.name.includes("auth-token") &&
-      !cookie.name.includes("code-verifier")
-  );
-
-  if (!authCookie) {
-    return null;
-  }
-
-  const { createServerClient } = await import("@supabase/ssr");
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-      },
-    }
-  );
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) return null;
-
-  const { data: profile } = await supabaseAdmin
-    .from("profiles")
-    .select("role, status")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile || profile.status !== "active") {
-    return null;
-  }
-
-  return { user, profile };
+  return requireAdmin(req);
 }
 
 // PATCH - Update contact status

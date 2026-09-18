@@ -47,6 +47,7 @@ export default function ConfirmSendModal({
   const [error, setError] = useState<string | null>(null);
   const [isSendingTest, setIsSendingTest] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
+  const [confirmingSchedule, setConfirmingSchedule] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -72,6 +73,7 @@ export default function ConfirmSendModal({
       setLoading(true);
       setError(null);
       setData(null);
+      setConfirmingSchedule(false);
 
       getNewsletterModalData(post.id)
         .then((result) => {
@@ -101,13 +103,12 @@ export default function ConfirmSendModal({
   const handleScheduleAll = async () => {
     if (!data || !post) return;
 
-    if (
-      !confirm(
-        `Are you sure you want to SCHEDULE this newsletter for all ${data.subscriberCount} subscribers?\n\nIt will be sent in batches based on the daily quota.`
-      )
-    ) {
+    // Two-step inline confirm instead of blocking confirm().
+    if (!confirmingSchedule) {
+      setConfirmingSchedule(true);
       return;
     }
+    setConfirmingSchedule(false);
 
     setIsScheduling(true);
     const toastId = toast.loading(
@@ -307,8 +308,9 @@ export default function ConfirmSendModal({
                       <CalendarClock className="w-4 h-4" />
                     )}
                     <span>
-                      Schedule for {data.subscriberCount.toLocaleString()}{" "}
-                      Subscribers
+                      {confirmingSchedule
+                        ? `Click again to confirm (${data.subscriberCount.toLocaleString()} subscribers)`
+                        : `Schedule for ${data.subscriberCount.toLocaleString()} Subscribers`}
                     </span>
                   </button>
 

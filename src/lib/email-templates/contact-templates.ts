@@ -9,8 +9,27 @@ export interface ContactFormData {
   message: string;
 }
 
+/**
+ * Escapes special HTML characters in user-supplied strings to prevent
+ * HTML injection and email-based phishing attacks.
+ */
+function escapeHtml(str: string | undefined | null): string {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 // User Confirmation Email Template
 export const userConfirmationTemplate = (data: ContactFormData) => {
+  const safeFullName = escapeHtml(data.fullName);
+  const safeCompany = escapeHtml(data.company);
+  const safeCompanySize = escapeHtml(data.companySize);
+  const safeContactNumber = escapeHtml(data.contactNumber);
+
   return `
 <!DOCTYPE html>
 <html>
@@ -39,7 +58,7 @@ export const userConfirmationTemplate = (data: ContactFormData) => {
               <h2 style="color: #1f2937; margin: 0 0 20px 0; font-size: 24px; font-weight: 600;">Thank You for Reaching Out!</h2>
               
               <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
-                Dear <strong style="color: #1f2937;">${data.fullName}</strong>,
+                Dear <strong style="color: #1f2937;">${safeFullName}</strong>,
               </p>
 
               <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
@@ -52,15 +71,15 @@ export const userConfirmationTemplate = (data: ContactFormData) => {
                 <table width="100%" cellpadding="0" cellspacing="0">
                   <tr>
                     <td style="color: #6b7280; font-size: 14px; padding: 8px 0; width: 140px;">Company:</td>
-                    <td style="color: #1f2937; font-size: 14px; padding: 8px 0; font-weight: 500;">${data.company}</td>
+                    <td style="color: #1f2937; font-size: 14px; padding: 8px 0; font-weight: 500;">${safeCompany}</td>
                   </tr>
                   <tr>
                     <td style="color: #6b7280; font-size: 14px; padding: 8px 0;">Company Size:</td>
-                    <td style="color: #1f2937; font-size: 14px; padding: 8px 0; font-weight: 500;">${data.companySize} employees</td>
+                    <td style="color: #1f2937; font-size: 14px; padding: 8px 0; font-weight: 500;">${safeCompanySize} employees</td>
                   </tr>
                   <tr>
                     <td style="color: #6b7280; font-size: 14px; padding: 8px 0;">Contact Number:</td>
-                    <td style="color: #1f2937; font-size: 14px; padding: 8px 0; font-weight: 500;">${data.contactNumber}</td>
+                    <td style="color: #1f2937; font-size: 14px; padding: 8px 0; font-weight: 500;">${safeContactNumber}</td>
                   </tr>
                 </table>
               </div>
@@ -112,6 +131,13 @@ export const userConfirmationTemplate = (data: ContactFormData) => {
 
 // Admin Notification Email Template
 export const adminNotificationTemplate = (data: ContactFormData) => {
+  const safeFullName = escapeHtml(data.fullName);
+  const safeEmail = escapeHtml(data.email);
+  const safeCompany = escapeHtml(data.company);
+  const safeCompanySize = escapeHtml(data.companySize);
+  const safeContactNumber = escapeHtml(data.contactNumber);
+  const safeMessage = escapeHtml(data.message || "No message provided.");
+
   return `
 <!DOCTYPE html>
 <html>
@@ -150,14 +176,14 @@ export const adminNotificationTemplate = (data: ContactFormData) => {
                 <tr>
                   <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
                     <span style="color: #6b7280; font-size: 14px; display: block; margin-bottom: 4px;">Full Name</span>
-                    <strong style="color: #1f2937; font-size: 16px;">${data.fullName}</strong>
+                    <strong style="color: #1f2937; font-size: 16px;">${safeFullName}</strong>
                   </td>
                 </tr>
                 <tr>
                   <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
                     <span style="color: #6b7280; font-size: 14px; display: block; margin-bottom: 4px;">Email Address</span>
                     <strong style="color: #2563eb; font-size: 16px;">
-                      <a href="mailto:${data.email}" style="color: #2563eb; text-decoration: none;">${data.email}</a>
+                      <a href="mailto:${safeEmail}" style="color: #2563eb; text-decoration: none;">${safeEmail}</a>
                     </strong>
                   </td>
                 </tr>
@@ -165,20 +191,20 @@ export const adminNotificationTemplate = (data: ContactFormData) => {
                   <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
                     <span style="color: #6b7280; font-size: 14px; display: block; margin-bottom: 4px;">Contact Number</span>
                     <strong style="color: #1f2937; font-size: 16px;">
-                      <a href="tel:${data.contactNumber}" style="color: #1f2937; text-decoration: none;">${data.contactNumber}</a>
+                      <a href="tel:${safeContactNumber}" style="color: #1f2937; text-decoration: none;">${safeContactNumber}</a>
                     </strong>
                   </td>
                 </tr>
                 <tr>
                   <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
                     <span style="color: #6b7280; font-size: 14px; display: block; margin-bottom: 4px;">Company</span>
-                    <strong style="color: #1f2937; font-size: 16px;">${data.company}</strong>
+                    <strong style="color: #1f2937; font-size: 16px;">${safeCompany}</strong>
                   </td>
                 </tr>
                 <tr>
                   <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
                     <span style="color: #6b7280; font-size: 14px; display: block; margin-bottom: 4px;">Company Size</span>
-                    <strong style="color: #1f2937; font-size: 16px;">${data.companySize} employees</strong>
+                    <strong style="color: #1f2937; font-size: 16px;">${safeCompanySize} employees</strong>
                   </td>
                 </tr>
               </table>
@@ -186,7 +212,7 @@ export const adminNotificationTemplate = (data: ContactFormData) => {
               <!-- Message -->
               <h3 style="color: #1f2937; margin: 0 0 15px 0; font-size: 18px; font-weight: 600;">Message</h3>
               <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb;">
-                <p style="color: #374151; font-size: 15px; line-height: 1.7; margin: 0; white-space: pre-wrap;">${data.message || "No message provided."}</p>
+                <p style="color: #374151; font-size: 15px; line-height: 1.7; margin: 0; white-space: pre-wrap;">${safeMessage}</p>
               </div>
 
               <!-- CTA Button -->

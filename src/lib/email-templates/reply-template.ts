@@ -1,5 +1,15 @@
 // src/lib/email-templates/reply-template.ts
 
+function escapeHtml(str: string | null | undefined): string {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export interface ReplyEmailData {
   contactName: string;
   contactEmail: string;
@@ -9,6 +19,11 @@ export interface ReplyEmailData {
 }
 
 export const replyEmailTemplate = (data: ReplyEmailData) => {
+  const contactName = escapeHtml(data.contactName);
+  const replyMessage = escapeHtml(data.replyMessage);
+  const adminName = escapeHtml(data.adminName);
+  const originalMessage = escapeHtml(data.originalMessage);
+
   return `
 <!DOCTYPE html>
 <html>
@@ -35,7 +50,7 @@ export const replyEmailTemplate = (data: ReplyEmailData) => {
           <tr>
             <td style="padding: 40px 30px;">
               <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
-                Dear <strong style="color: #1f2937;">${data.contactName}</strong>,
+                Dear <strong style="color: #1f2937;">${contactName}</strong>,
               </p>
 
               <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
@@ -44,7 +59,7 @@ export const replyEmailTemplate = (data: ReplyEmailData) => {
 
               <!-- Reply Message -->
               <div style="background-color: #f9fafb; border-left: 4px solid #2563eb; padding: 20px; margin: 0 0 30px 0; border-radius: 6px;">
-                <p style="color: #1f2937; font-size: 15px; line-height: 1.7; margin: 0; white-space: pre-wrap;">${data.replyMessage}</p>
+                <p style="color: #1f2937; font-size: 15px; line-height: 1.7; margin: 0; white-space: pre-wrap;">${replyMessage}</p>
               </div>
 
               <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
@@ -62,7 +77,7 @@ export const replyEmailTemplate = (data: ReplyEmailData) => {
 
               <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0;">
                 Best regards,<br>
-                <strong style="color: #1f2937;">${data.adminName}</strong><br>
+                <strong style="color: #1f2937;">${adminName}</strong><br>
                 <span style="color: #6b7280;">KaizenHR Team</span>
               </p>
             </td>
@@ -75,7 +90,7 @@ export const replyEmailTemplate = (data: ReplyEmailData) => {
                 Your Original Message:
               </p>
               <p style="color: #4b5563; font-size: 14px; line-height: 1.6; margin: 0; font-style: italic;">
-                "${data.originalMessage}"
+                "${originalMessage}"
               </p>
             </td>
           </tr>

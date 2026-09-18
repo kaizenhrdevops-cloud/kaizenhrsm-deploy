@@ -2,9 +2,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import toast from "react-hot-toast";
 import { RefreshCw, Upload, X, ChevronDown, ChevronUp } from "lucide-react";
 import type { Database } from "@/types/supabase";
-import { createBrowserClient } from "@supabase/ssr";
+import { getBrowserClient } from "@/lib/client";
 import { compressImage } from "../utils/image-compressor";
 
 type Post = Database["public"]["Tables"]["posts"]["Row"];
@@ -25,10 +26,7 @@ export default function Step2SEO({
   const [isUploadingOG, setIsUploadingOG] = useState(false);
   const ogFileInputRef = useRef<HTMLInputElement>(null);
 
-  const supabase = createBrowserClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = getBrowserClient();
 
   function generateBaseSlug(text: string): string {
     return text
@@ -100,7 +98,7 @@ export default function Step2SEO({
       setPost((prev) => ({ ...prev, seo_og_image: publicUrl }));
     } catch (error) {
       console.error("Failed to upload OG image:", error);
-      alert("Failed to upload image. Please try again.");
+      toast.error("Failed to upload image. Please try again.");
     } finally {
       setIsUploadingOG(false);
     }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createBrowserClient } from "@supabase/ssr";
+import { getBrowserClient } from "@/lib/client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertCircle, Loader2, Lock } from "lucide-react";
 
@@ -15,10 +15,7 @@ export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = getBrowserClient();
 
   // Apply URL-based errors
   useEffect(() => {

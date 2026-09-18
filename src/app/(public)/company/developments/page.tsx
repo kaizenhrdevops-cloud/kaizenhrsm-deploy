@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
-import { createClient } from "../../../../lib/client";
+import React, { useState, useEffect } from "react";
+import { getBrowserClient } from "@/lib/client";
 import Navbar from "../../../../components/layout/Navbar";
 import Footer from "../../../../components/layout/Footer";
-import { ArrowRight, FileText, ChevronLeft, ChevronRight } from "lucide-react";
+import Pagination from "@/components/ui/Pagination";
+import { ArrowRight, FileText } from "lucide-react";
 
 type Post = {
   id: string;
@@ -12,83 +13,8 @@ type Post = {
   slug: string;
   excerpt: string | null;
   featured_image: string | null;
-  published_at: string;
+  published_at: string | null;
 };
-
-// --- Helper function to generate pagination range ---
-const DOTS = '...';
-
-const usePagination = ({
-  totalCount,
-  pageSize,
-  siblingCount = 1,
-  currentPage,
-}: {
-  totalCount: number;
-  pageSize: number;
-  siblingCount?: number;
-  currentPage: number;
-}) => {
-  const paginationRange = useMemo(() => {
-    const totalPageCount = Math.ceil(totalCount / pageSize);
-
-    // Pages count is determined as siblingCount + firstPage + lastPage + currentPage + 2*DOTS
-    const totalPageNumbers = siblingCount + 5;
-
-    /*
-      Case 1:
-      If the number of pages is less than the page numbers we want to show in our
-      paginationComponent, we return the range [1..totalPageCount]
-    */
-    if (totalPageNumbers >= totalPageCount) {
-      return Array.from({ length: totalPageCount }, (_, i) => i + 1);
-    }
-
-    const leftSiblingIndex = Math.max(currentPage - siblingCount, 1);
-    const rightSiblingIndex = Math.min(
-      currentPage + siblingCount,
-      totalPageCount
-    );
-
-    const shouldShowLeftDots = leftSiblingIndex > 2;
-    const shouldShowRightDots = rightSiblingIndex < totalPageCount - 2;
-
-    const firstPageIndex = 1;
-    const lastPageIndex = totalPageCount;
-
-    /*
-    	Case 2: No left dots to show, but rights dots to be shown
-    */
-    if (!shouldShowLeftDots && shouldShowRightDots) {
-      let leftItemCount = 3 + 2 * siblingCount;
-      let leftRange = Array.from({ length: leftItemCount }, (_, i) => i + 1);
-
-      return [...leftRange, DOTS, totalPageCount];
-    }
-
-    /*
-    	Case 3: No right dots to show, but left dots to be shown
-    */
-    if (shouldShowLeftDots && !shouldShowRightDots) {
-      let rightItemCount = 3 + 2 * siblingCount;
-      let rightRange = Array.from({ length: rightItemCount }, (_, i) => totalPageCount - rightItemCount + i + 1);
-      return [firstPageIndex, DOTS, ...rightRange];
-    }
-
-    /*
-    	Case 4: Both left and right dots to be shown
-    */
-    if (shouldShowLeftDots && shouldShowRightDots) {
-      let middleRange = Array.from({ length: rightSiblingIndex - leftSiblingIndex + 1 }, (_, i) => leftSiblingIndex + i);
-      return [firstPageIndex, DOTS, ...middleRange, DOTS, lastPageIndex];
-    }
-
-    return [];
-  }, [totalCount, pageSize, siblingCount, currentPage]);
-
-  return paginationRange;
-};
-
 
 export default function DevelopmentsPage() {
   const [posts, setPosts] = useState<Post[]>([]);
@@ -99,13 +25,7 @@ export default function DevelopmentsPage() {
 
   const totalPages = Math.ceil(totalPosts / postsPerPage);
 
-  const paginationRange = usePagination({
-    currentPage,
-    totalCount: totalPosts,
-    pageSize: postsPerPage,
-  });
-
-  const supabase = createClient();
+  const supabase = getBrowserClient();
 
   useEffect(() => {
     fetchPosts();
@@ -118,7 +38,7 @@ export default function DevelopmentsPage() {
       // Get total count
       const { count } = await supabase
         .from("posts")
-        .select("*", { count: "exact", head: true })
+        .select("id", { count: "exact", head: true })
         .eq("category", "development")
         .eq("status", "published");
 
@@ -144,15 +64,6 @@ export default function DevelopmentsPage() {
       setLoading(false);
     }
   };
-
-  const onNext = () => {
-    setCurrentPage(currentPage + 1);
-  };
-
-  const onPrevious = () => {
-    setCurrentPage(currentPage - 1);
-  };
-
 
   if (loading) {
     return (
@@ -278,55 +189,13 @@ export default function DevelopmentsPage() {
                 </div>
               )}
 
-              {/* --- NEW PAGINATION COMPONENT --- */}
-              {totalPages > 1 && (
-                <nav
-                  aria-label="Pagination"
-                  className="flex justify-center items-center gap-2 mt-16"
-                >
-                  <button
-                    onClick={onPrevious}
-                    disabled={currentPage === 1}
-                    className="inline-flex items-center justify-center w-10 h-10 rounded-md bg-white text-slate-700 font-medium border border-slate-300 transition-colors hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
-                  >
-                    <span className="sr-only">Previous</span>
-                    <ChevronLeft className="w-5 h-5" />
-                  </button>
-
-                  {paginationRange?.map((pageNumber, index) => {
-                    if (pageNumber === DOTS) {
-                      return (
-                        <span key={`dots-${index}`} className="flex items-center justify-center w-10 h-10 text-slate-500">
-                          &#8230;
-                        </span>
-                      );
-                    }
-
-                    return (
-                      <button
-                        key={pageNumber}
-                        onClick={() => setCurrentPage(Number(pageNumber))}
-                        className={`inline-flex items-center justify-center w-10 h-10 rounded-md font-medium border transition-colors ${
-                          currentPage === pageNumber
-                            ? "bg-blue-600 text-white border-blue-600 cursor-default"
-                            : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
-                        }`}
-                      >
-                        {pageNumber}
-                      </button>
-                    );
-                  })}
-
-                  <button
-                    onClick={onNext}
-                    disabled={currentPage === totalPages}
-                    className="inline-flex items-center justify-center w-10 h-10 rounded-md bg-white text-slate-700 font-medium border border-slate-300 transition-colors hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
-                  >
-                    <span className="sr-only">Next</span>
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
-                </nav>
-              )}
+              {/* Shared pagination (see src/components/ui/Pagination.tsx) */}
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onChange={setCurrentPage}
+                className="mt-16"
+              />
             </>
           )}
         </div>

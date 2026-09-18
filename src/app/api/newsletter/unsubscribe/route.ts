@@ -1,11 +1,9 @@
 // src/app/api/newsletter/unsubscribe/route.ts
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getServiceClient } from "@/lib/supabase-admin";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Shared service-role client (see src/lib/supabase-admin.ts)
+const supabaseAdmin = getServiceClient();
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);

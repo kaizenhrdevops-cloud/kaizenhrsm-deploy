@@ -8,7 +8,7 @@ type Module = {
   name: string;
   description: string;
   link: string;
-  imageSrc: string;
+  imageSrc?: string;
 };
 
 // Define the props for the component

@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import type { Database } from "@/types/supabase";
 import {
@@ -47,7 +48,7 @@ export default function EditorClient({
       setPost({ ...post, category });
       setCurrentStep(2);
     } else {
-      alert(result.message);
+      toast.error(result.message || "Something went wrong.");
     }
     setIsSaving(false);
   };
@@ -77,7 +78,7 @@ export default function EditorClient({
       }
 
       if (errors.length > 0) {
-        alert("Please fix the following issues:\n\n" + errors.join("\n"));
+        toast.error("Please fix the following issues:\n\n" + errors.join("\n"));
         setIsSaving(false);
         return;
       }
@@ -106,7 +107,7 @@ export default function EditorClient({
       if (result.success) {
         setCurrentStep(3);
       } else {
-        alert(result.message || "Failed to save SEO details");
+        toast.error(result.message || "Failed to save SEO details");
       }
       success = result.success; // <-- ASSIGN VALUE
     } else if (currentStep === 3) {
@@ -117,10 +118,10 @@ export default function EditorClient({
       // Step 4 (Review) logic stays the same
       const result = await publishPost(post.id);
       if (result.success) {
-        alert("Post published successfully!");
+        toast.success("Post published successfully!");
         router.push("/admin/blog");
       } else {
-        alert(result.message);
+      toast.error(result.message);
       }
       success = result.success; // <-- ASSIGN VALUE
     } else {

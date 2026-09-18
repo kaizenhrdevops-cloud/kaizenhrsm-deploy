@@ -4,6 +4,8 @@ import imageCompression from 'browser-image-compression';
 interface CompressOptions {
   maxWidth: number;
   quality: number;
+  /** Size budget in MB. Defaults to 0.1 (~100KB) when omitted. */
+  maxSizeMB?: number;
 }
 
 /**
@@ -22,8 +24,9 @@ export async function compressImage(file: File, options: CompressOptions): Promi
   }
   // --- END MODIFICATION ---
 
-  // Target size in MB (100KB = 0.1MB)
-  const targetSizeMB = 0.1;
+  // Target size in MB (default 100KB = 0.1MB; callers with fine
+  // detail such as banner text can pass a higher budget).
+  const targetSizeMB = options.maxSizeMB ?? 0.1;
   
   const compressionOptions = {
     maxSizeMB: targetSizeMB,
@@ -46,7 +49,7 @@ export async function compressImage(file: File, options: CompressOptions): Promi
         maxSizeMB: targetSizeMB,
         maxWidthOrHeight: Math.min(options.maxWidth, 1200),
         useWebWorker: true,
-        initialQuality: Math.min(options.quality, 0.6),
+        initialQuality: Math.min(options.quality, 0.7),
         fileType: 'image/webp',
         maxIteration: 15,
       };

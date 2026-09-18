@@ -6,7 +6,8 @@ import { ContactQuickView } from "@/types/dashboard";
 import { Eye, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 
-const formatDate = (dateString: string) => {
+const formatDate = (dateString?: string | null) => {
+  if (!dateString) return "N/A";
   const date = new Date(dateString);
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
@@ -16,8 +17,8 @@ const formatDate = (dateString: string) => {
   }).format(date);
 };
 
-const getStatusColor = (status: string) => {
-  switch (status) {
+const getStatusColor = (status?: string | null) => {
+  switch (status || "new") {
     case "new":
       return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400";
     case "contacted":

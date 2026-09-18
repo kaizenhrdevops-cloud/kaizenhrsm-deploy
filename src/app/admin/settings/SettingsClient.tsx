@@ -8,111 +8,24 @@ import {
   Save,
   Info,
   ChevronRight,
-  Globe,
-  Share2,
-  Layout,
-  Award,
-  Plug,
-  Copyright,
-  RotateCcw,
   Plus,
   Trash2,
-  ToggleLeft,
-  Mail,
-  FileText,
+  RotateCcw,
 } from "lucide-react";
-import Toast from "@/components/shared/Toast";
+import toast from "react-hot-toast";
+import ConfirmModal from "@/components/ui/ConfirmModal";
+import Button from "@/components/ui/Button";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import SettingsImageUploader from "@/components/admin/SettingsImageUploader";
-
-type SystemSettings = {
-  [key: string]: string;
-};
-
-type Category = {
-  id: string;
-  label: string;
-  icon: any;
-};
-
-type SocialLink = {
-  platform: string;
-  url: string;
-};
-
-const CATEGORIES: Category[] = [
-  { id: "general", label: "General System", icon: Layout },
-  { id: "features", label: "Feature Toggles", icon: ToggleLeft },
-  { id: "email_config", label: "Email Configuration", icon: Mail },
-  { id: "blog_config", label: "Blog Settings", icon: FileText },
-  { id: "contact", label: "Contact & Company", icon: Globe },
-  { id: "social", label: "Social & Apps", icon: Share2 },
-  { id: "hero", label: "Homepage Hero", icon: Layout },
-  { id: "marketing", label: "Marketing (Trial/Awards)", icon: Award },
-  { id: "integrations", label: "Integrations", icon: Plug },
-  { id: "footer", label: "Footer", icon: Copyright },
-];
-
-// Define Factory Defaults
-const FACTORY_DEFAULTS: SystemSettings = {
-  newsletter_daily_limit: "100",
-  audit_log_retention_days: "90",
-  contact_address:
-    "Suite D-05-01, 5th Floor, Block D,\nPlaza Mont Kiara,\n50480 Kuala Lumpur, Malaysia",
-  contact_email: "inquiry@kaizenhrms.com",
-  contact_phone: "+603-62010242",
-  company_slogan: "Malaysia's Tier 1 Enterprise HR Solution",
-  company_founding_year: "1997",
-  social_links: JSON.stringify([
-    { platform: "Facebook", url: "https://facebook.com" },
-    { platform: "LinkedIn", url: "https://linkedin.com" },
-  ]),
-  link_app_store: "",
-  link_google_play: "",
-  home_hero_video_id: "https://www.youtube.com/embed/p4-USNtPYrY",
-  marketing_award_image_1: "/apicta.png",
-  marketing_award_image_2: "/Module_Brochure_Kaizen_Draft.png",
-  marketing_trial_image:
-    "https://www.kaizenhr.my/wp-content/uploads/2015/01/business.webp",
-  integration_google_maps_embed:
-    "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3983.72930091868!2d101.64939557528581!3d3.165847553049145!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31cc48f1965b1f3f%3A0xd37a5feb10a562f9!2sKaiZenHR%20Sdn%20Bhd!5e0!3m2!1sen!2smy!4v1763566181982!5m2!1sen!2smy",
-  footer_copyright_text: "© KaiZenHR Sdn Bhd 2025. All Rights Reserved.",
-  enable_maintenance_mode: "false",
-  enable_public_registration: "true",
-  admin_notification_email: "kaizenhrdev@kaizenhr.my",
-  email_sender_name: "KaizenHR",
-  email_sender_address: "onboarding@resend.dev",
-  blog_default_author_name: "KaizenHR Team",
-};
-
-// Map keys to categories
-const CATEGORY_KEYS: Record<string, string[]> = {
-  general: ["newsletter_daily_limit", "audit_log_retention_days"],
-  features: ["enable_maintenance_mode", "enable_public_registration"],
-  email_config: [
-    "admin_notification_email",
-    "email_sender_name",
-    "email_sender_address",
-  ],
-  blog_config: ["blog_default_author_name"],
-  contact: [
-    "company_slogan",
-    "company_founding_year",
-    "contact_address",
-    "contact_email",
-    "contact_phone",
-  ],
-  social: ["social_links", "link_app_store", "link_google_play"],
-  hero: ["home_hero_video_id"],
-  marketing: [
-    "marketing_trial_image",
-    "marketing_award_image_1",
-    "marketing_award_image_2",
-  ],
-  integrations: ["integration_google_maps_embed"],
-  footer: ["footer_copyright_text"],
-};
+import { Field, Toggle } from "./SettingsField";
+import {
+  CATEGORIES,
+  CATEGORY_KEYS,
+  FACTORY_DEFAULTS,
+  type SocialLink,
+  type SystemSettings,
+} from "./settings-defaults";
 
 export default function SettingsClient({
   initialSettings,
@@ -122,11 +35,7 @@ export default function SettingsClient({
   const [settings, setSettings] = useState(initialSettings);
   const [isSaving, setIsSaving] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>("contact");
-  const [toast, setToast] = useState<{
-    show: boolean;
-    message: string;
-    type: "success" | "error";
-  }>({ show: false, message: "", type: "success" });
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const [currentInitialSettings, setInitialSettings] =
     useState(initialSettings);
@@ -155,21 +64,13 @@ export default function SettingsClient({
         const result = await updateSystemSetting(key, settings[key]);
         if (!result.success) {
           hasError = true;
-          setToast({
-            show: true,
-            message: result.message || `Error saving ${key}`,
-            type: "error",
-          });
+          toast.error(result.message || `Error saving ${key}`);
         }
       }
     }
 
     if (!hasError) {
-      setToast({
-        show: true,
-        message: "Settings saved successfully!",
-        type: "success",
-      });
+      toast.success("Settings saved successfully!");
       setInitialSettings(savedSettings);
     }
 
@@ -177,30 +78,25 @@ export default function SettingsClient({
   };
 
   const handleReset = () => {
-    if (confirm("Reset this section to FACTORY DEFAULTS?")) {
-      const keysToReset = CATEGORY_KEYS[activeCategory] || [];
-      const newSettings = { ...settings };
+    const keysToReset = CATEGORY_KEYS[activeCategory] || [];
+    const newSettings = { ...settings };
 
-      keysToReset.forEach((key) => {
-        newSettings[key] = FACTORY_DEFAULTS[key] || "";
-      });
+    keysToReset.forEach((key) => {
+      newSettings[key] = FACTORY_DEFAULTS[key] || "";
+    });
 
-      if (activeCategory === "social") {
-        try {
-          const defaultSocials = JSON.parse(FACTORY_DEFAULTS.social_links);
-          setSocialLinksList(defaultSocials);
-        } catch (e) {
-          setSocialLinksList([]);
-        }
+    if (activeCategory === "social") {
+      try {
+        const defaultSocials = JSON.parse(FACTORY_DEFAULTS.social_links);
+        setSocialLinksList(defaultSocials);
+      } catch (e) {
+        setSocialLinksList([]);
       }
-
-      setSettings(newSettings);
-      setToast({
-        show: true,
-        message: "Restored factory defaults.",
-        type: "success",
-      });
     }
+
+    setSettings(newSettings);
+    setShowResetConfirm(false);
+    toast.success("Restored factory defaults.");
   };
 
   const handleChange = (key: string, value: string) => {
@@ -223,7 +119,7 @@ export default function SettingsClient({
   const updateSocialLink = (
     index: number,
     field: keyof SocialLink,
-    value: string
+    value: string,
   ) => {
     const newList = [...socialLinksList];
     newList[index][field] = value;
@@ -236,13 +132,15 @@ export default function SettingsClient({
 
   return (
     <div className="flex flex-col lg:flex-row gap-8">
-      {toast.show && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast({ ...toast, show: false })}
-        />
-      )}
+      <ConfirmModal
+        isOpen={showResetConfirm}
+        onClose={() => setShowResetConfirm(false)}
+        onConfirm={handleReset}
+        title="Reset to defaults?"
+        message="This section's settings will be restored to factory defaults. Unsaved edits will be lost."
+        confirmLabel="Reset"
+        variant="danger"
+      />
 
       <div className="w-full lg:w-64 flex-shrink-0">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -254,7 +152,7 @@ export default function SettingsClient({
                 "w-full flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors border-b border-gray-100 dark:border-gray-700 last:border-0",
                 activeCategory === cat.id
                   ? "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300"
-                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50",
               )}
             >
               <div className="flex items-center gap-3">
@@ -283,11 +181,12 @@ export default function SettingsClient({
           <div className="p-6 space-y-6">
             {activeCategory === "general" && (
               <>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Daily Email Send Limit
-                    </label>
+                <Field
+                  label="Daily Email Send Limit"
+                  type="number"
+                  value={settings.newsletter_daily_limit || "100"}
+                  onChange={(v) => handleChange("newsletter_daily_limit", v)}
+                  headerAction={
                     <Link
                       href="/admin/settings/email-logic"
                       target="_blank"
@@ -295,222 +194,123 @@ export default function SettingsClient({
                     >
                       <Info size={12} /> Logic Explained
                     </Link>
-                  </div>
-                  <input
-                    type="number"
-                    value={settings.newsletter_daily_limit || "100"}
-                    onChange={(e) =>
-                      handleChange("newsletter_daily_limit", e.target.value)
-                    }
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-600 dark:text-white"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Audit Log Retention
-                  </label>
-                  <select
-                    value={settings.audit_log_retention_days || "90"}
-                    onChange={(e) =>
-                      handleChange("audit_log_retention_days", e.target.value)
-                    }
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-600 dark:text-white"
-                  >
-                    <option value="0.0416">1 Hour (Testing)</option>
-                    <option value="30">30 Days</option>
-                    <option value="90">90 Days</option>
-                    <option value="365">1 Year</option>
-                  </select>
-                </div>
+                  }
+                />
+                <Field
+                  label="Audit Log Retention"
+                  select
+                  value={settings.audit_log_retention_days || "30"}
+                  onChange={(v) =>
+                    handleChange("audit_log_retention_days", v)
+                  }
+                  options={[
+                    { value: "0.0416", label: "1 Hour (Testing)" },
+                    { value: "30", label: "30 Days" },
+                    { value: "90", label: "90 Days" },
+                    { value: "365", label: "1 Year" },
+                  ]}
+                />
               </>
             )}
 
             {activeCategory === "features" && (
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 border rounded-lg dark:border-gray-700">
-                  <div>
-                    <label className="text-sm font-medium text-gray-900 dark:text-white block">
-                      Maintenance Mode
-                    </label>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Disable public access to the site.
-                    </p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="sr-only peer"
-                      checked={settings.enable_maintenance_mode === "true"}
-                      onChange={(e) =>
-                        handleChange(
-                          "enable_maintenance_mode",
-                          String(e.target.checked)
-                        )
-                      }
-                    />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                  </label>
-                </div>
-                <div className="flex items-center justify-between p-4 border rounded-lg dark:border-gray-700">
-                  <div>
-                    <label className="text-sm font-medium text-gray-900 dark:text-white block">
-                      Public Registration
-                    </label>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Allow new users to sign up for newsletter.
-                    </p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="sr-only peer"
-                      checked={settings.enable_public_registration === "true"}
-                      onChange={(e) =>
-                        handleChange(
-                          "enable_public_registration",
-                          String(e.target.checked)
-                        )
-                      }
-                    />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                  </label>
-                </div>
+                <Toggle
+                  label="Maintenance Mode"
+                  description="Disable public access to the site."
+                  checked={settings.enable_maintenance_mode === "true"}
+                  onChange={(checked) =>
+                    handleChange(
+                      "enable_maintenance_mode",
+                      String(checked),
+                    )
+                  }
+                />
+                <Toggle
+                  label="Public Registration"
+                  description="Allow new users to sign up for newsletter."
+                  checked={settings.enable_public_registration === "true"}
+                  onChange={(checked) =>
+                    handleChange(
+                      "enable_public_registration",
+                      String(checked),
+                    )
+                  }
+                />
               </div>
             )}
 
             {activeCategory === "email_config" && (
               <>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Admin Notification Email
-                  </label>
-                  <input
-                    type="email"
-                    value={settings.admin_notification_email || ""}
-                    onChange={(e) =>
-                      handleChange("admin_notification_email", e.target.value)
-                    }
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-600 dark:text-white"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Email Sender Name
-                  </label>
-                  <input
-                    type="text"
-                    value={settings.email_sender_name || ""}
-                    onChange={(e) =>
-                      handleChange("email_sender_name", e.target.value)
-                    }
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-600 dark:text-white"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Sender Email Address
-                  </label>
-                  <input
-                    type="text"
-                    value={settings.email_sender_address || ""}
-                    onChange={(e) =>
-                      handleChange("email_sender_address", e.target.value)
-                    }
-                    placeholder="onboarding@resend.dev"
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-600 dark:text-white"
-                  />
-                  <p className="text-xs text-gray-500">
-                    Must be 'onboarding@resend.dev' (Free) or a verified domain
-                    email (Paid). Falls back to .env if empty.
-                  </p>
-                </div>
+                <Field
+                  label="Admin Notification Email"
+                  type="email"
+                  value={settings.admin_notification_email || ""}
+                  onChange={(v) =>
+                    handleChange("admin_notification_email", v)
+                  }
+                />
+                <Field
+                  label="Email Sender Name"
+                  value={settings.email_sender_name || ""}
+                  onChange={(v) => handleChange("email_sender_name", v)}
+                />
+                <Field
+                  label="Sender Email Address"
+                  value={settings.email_sender_address || ""}
+                  onChange={(v) =>
+                    handleChange("email_sender_address", v)
+                  }
+                  placeholder="onboarding@resend.dev"
+                  hint="Must be 'onboarding@resend.dev' (Free) or a verified domain email (Paid). Falls back to .env if empty."
+                />
               </>
             )}
 
             {activeCategory === "blog_config" && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Default Blog Author
-                </label>
-                <input
-                  type="text"
-                  value={settings.blog_default_author_name || ""}
-                  onChange={(e) =>
-                    handleChange("blog_default_author_name", e.target.value)
-                  }
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-600 dark:text-white"
-                />
-              </div>
+              <Field
+                label="Default Blog Author"
+                value={settings.blog_default_author_name || ""}
+                onChange={(v) =>
+                  handleChange("blog_default_author_name", v)
+                }
+              />
             )}
 
             {activeCategory === "contact" && (
               <>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Company Slogan
-                  </label>
-                  <input
-                    type="text"
-                    value={settings.company_slogan || ""}
-                    onChange={(e) =>
-                      handleChange("company_slogan", e.target.value)
-                    }
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-600 dark:text-white"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Founding Year
-                  </label>
-                  <input
-                    type="number"
-                    value={settings.company_founding_year || ""}
-                    onChange={(e) =>
-                      handleChange("company_founding_year", e.target.value)
-                    }
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-600 dark:text-white"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Office Address
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={settings.contact_address || ""}
-                    onChange={(e) =>
-                      handleChange("contact_address", e.target.value)
-                    }
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-600 dark:text-white"
-                  />
-                </div>
+                <Field
+                  label="Company Slogan"
+                  value={settings.company_slogan || ""}
+                  onChange={(v) => handleChange("company_slogan", v)}
+                />
+                <Field
+                  label="Founding Year"
+                  type="number"
+                  value={settings.company_founding_year || ""}
+                  onChange={(v) =>
+                    handleChange("company_founding_year", v)
+                  }
+                />
+                <Field
+                  label="Office Address"
+                  textarea
+                  rows={3}
+                  value={settings.contact_address || ""}
+                  onChange={(v) => handleChange("contact_address", v)}
+                />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Public Email
-                    </label>
-                    <input
-                      type="email"
-                      value={settings.contact_email || ""}
-                      onChange={(e) =>
-                        handleChange("contact_email", e.target.value)
-                      }
-                      className="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-600 dark:text-white"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Phone Number
-                    </label>
-                    <input
-                      type="text"
-                      value={settings.contact_phone || ""}
-                      onChange={(e) =>
-                        handleChange("contact_phone", e.target.value)
-                      }
-                      className="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-600 dark:text-white"
-                    />
-                  </div>
+                  <Field
+                    label="Public Email"
+                    type="email"
+                    value={settings.contact_email || ""}
+                    onChange={(v) => handleChange("contact_email", v)}
+                  />
+                  <Field
+                    label="Phone Number"
+                    value={settings.contact_phone || ""}
+                    onChange={(v) => handleChange("contact_phone", v)}
+                  />
                 </div>
               </>
             )}
@@ -539,7 +339,7 @@ export default function SettingsClient({
                               updateSocialLink(
                                 index,
                                 "platform",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             placeholder="Platform"
@@ -575,51 +375,29 @@ export default function SettingsClient({
                 </div>
                 <div className="border-t border-gray-100 dark:border-gray-700 pt-4 mt-2">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        App Store (iOS)
-                      </label>
-                      <input
-                        type="text"
-                        value={settings.link_app_store || ""}
-                        onChange={(e) =>
-                          handleChange("link_app_store", e.target.value)
-                        }
-                        className="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-600 dark:text-white"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Google Play (Android)
-                      </label>
-                      <input
-                        type="text"
-                        value={settings.link_google_play || ""}
-                        onChange={(e) =>
-                          handleChange("link_google_play", e.target.value)
-                        }
-                        className="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-600 dark:text-white"
-                      />
-                    </div>
+                    <Field
+                      label="App Store (iOS)"
+                      value={settings.link_app_store || ""}
+                      onChange={(v) => handleChange("link_app_store", v)}
+                    />
+                    <Field
+                      label="Google Play (Android)"
+                      value={settings.link_google_play || ""}
+                      onChange={(v) =>
+                        handleChange("link_google_play", v)
+                      }
+                    />
                   </div>
                 </div>
               </>
             )}
 
             {activeCategory === "hero" && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Homepage Video URL (Embed)
-                </label>
-                <input
-                  type="text"
-                  value={settings.home_hero_video_id || ""}
-                  onChange={(e) =>
-                    handleChange("home_hero_video_id", e.target.value)
-                  }
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-600 dark:text-white"
-                />
-              </div>
+              <Field
+                label="Homepage Video URL (Embed)"
+                value={settings.home_hero_video_id || ""}
+                onChange={(v) => handleChange("home_hero_video_id", v)}
+              />
             )}
 
             {activeCategory === "marketing" && (
@@ -657,63 +435,44 @@ export default function SettingsClient({
             )}
 
             {activeCategory === "integrations" && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Google Maps Embed URL
-                </label>
-                <textarea
-                  rows={4}
-                  value={settings.integration_google_maps_embed || ""}
-                  onChange={(e) =>
-                    handleChange(
-                      "integration_google_maps_embed",
-                      e.target.value
-                    )
-                  }
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-600 dark:text-white font-mono text-xs"
-                />
-              </div>
+              <Field
+                label="Google Maps Embed URL"
+                textarea
+                rows={4}
+                mono
+                value={settings.integration_google_maps_embed || ""}
+                onChange={(v) =>
+                  handleChange("integration_google_maps_embed", v)
+                }
+              />
             )}
 
             {activeCategory === "footer" && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Copyright Text
-                </label>
-                <input
-                  type="text"
-                  value={settings.footer_copyright_text || ""}
-                  onChange={(e) =>
-                    handleChange("footer_copyright_text", e.target.value)
-                  }
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-600 dark:text-white"
-                />
-              </div>
+              <Field
+                label="Copyright Text"
+                value={settings.footer_copyright_text || ""}
+                onChange={(v) =>
+                  handleChange("footer_copyright_text", v)
+                }
+              />
             )}
           </div>
 
           <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
-            <button
-              onClick={handleReset}
-              type="button"
-              disabled={isSaving}
-              className="inline-flex items-center justify-center px-4 py-2 space-x-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700 transition-colors"
-            >
+            <Button onClick={() => setShowResetConfirm(true)} disabled={isSaving}>
               <RotateCcw size={16} />
               <span>Reset to Default</span>
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="primary"
               onClick={handleSave}
               disabled={!isChanged || isSaving}
-              className="inline-flex items-center justify-center px-6 py-2 space-x-2 text-sm font-semibold text-white transition-colors bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              loading={isSaving}
+              className="px-6 font-semibold shadow-sm"
             >
-              {isSaving ? (
-                <Loader2 size={18} className="animate-spin" />
-              ) : (
-                <Save size={18} />
-              )}
+              {!isSaving && <Save size={18} />}
               <span>{isSaving ? "Saving..." : "Save Changes"}</span>
-            </button>
+            </Button>
           </div>
         </div>
       </div>

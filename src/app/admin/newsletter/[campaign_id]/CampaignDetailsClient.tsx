@@ -63,7 +63,7 @@ const StatusBadge = ({ status }: { status: string | null }) => {
   const baseClasses =
     "inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full";
   let colorClasses = "";
-  let text =
+  const text =
     (status || "unknown").charAt(0).toUpperCase() +
     (status || "unknown").slice(1);
   let icon = <Clock size={12} />;

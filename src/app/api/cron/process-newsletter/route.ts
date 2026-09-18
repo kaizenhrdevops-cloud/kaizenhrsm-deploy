@@ -1,11 +1,17 @@
 // src/app/api/cron/process-newsletter/route.ts
 import { NextResponse, type NextRequest } from "next/server";
 import { processNewsletterQueue } from "@/app/admin/blog/newsletterActions";
-import { createClient } from "@/lib/server"; // Import createClient
+import { getServiceClient } from "@/lib/supabase-admin";
+
+// ADD THIS LINE EXACTLY HERE
+export const dynamic = 'force-dynamic';
+// ← this tells Next.js: “never run this API route at build time”
 
 // --- NEW: Maintenance Function ---
 async function cleanupAuditLogs() {
-  const supabase = await createClient();
+  // Use service role client: cron requests have no user session cookies,
+  // and anon key is blocked by RLS from deleting admin audit logs.
+  const supabase = getServiceClient();
 
   try {
     // 1. Get the retention setting
@@ -15,8 +21,8 @@ async function cleanupAuditLogs() {
       .eq("key", "audit_log_retention_days")
       .single();
 
-    // Default to 90 days if not set
-    let retentionDays = 90;
+    // Default to 30 days if not set (fits Supabase free 500MB DB)
+    let retentionDays = 30;
     
     if (setting?.value) {
       // Handle case where value might be a JSON string like "\"0.0416\""
@@ -57,9 +63,10 @@ async function cleanupAuditLogs() {
 // ---------------------------------
 
 export async function GET(req: NextRequest) {
-  // 1. Secure the endpoint
+  // 1. Secure the endpoint (prevent bypass if CRON_SECRET is undefined)
+  const cronSecret = process.env.CRON_SECRET;
   const authHeader = req.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

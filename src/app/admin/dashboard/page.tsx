@@ -2,13 +2,23 @@
 
 import { createClient } from "@/lib/server";
 import { redirect } from "next/navigation";
+import dynamic from "next/dynamic";
 import { DashboardStat, ActivityItem } from "@/types/dashboard";
 import Container from "@/components/layout/Container";
 import DashboardStatsGrid from "./components/DashboardStatsGrid";
 import ActivityTimeline from "./components/ActivityTimeline";
 import ContactsTable from "./components/ContactsTable";
 import QuickActions from "./components/QuickActions";
-import SubscriberChart from "./components/SubscriberChart";
+
+// Lazy-load recharts so the dashboard streams without waiting for it.
+// (No ssr:false — this is a Server Component; dynamic() still code-splits.)
+const SubscriberChart = dynamic(() => import("./components/SubscriberChart"), {
+  loading: () => (
+    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
+      <div className="h-[300px] w-full animate-pulse bg-slate-100 dark:bg-slate-700/50 rounded-lg" />
+    </div>
+  ),
+});
 
 export const metadata = {
   title: "Admin Dashboard | Kaizen",
@@ -29,7 +39,7 @@ export default async function DashboardPage() {
     .eq("id", user.id)
     .single();
 
-  if (!profile || !["admin", "super_admin"].includes(profile.role)) {
+  if (!profile || !["admin", "super_admin"].includes(profile.role || "")) {
     redirect("/");
   }
 
@@ -47,11 +57,20 @@ export default async function DashboardPage() {
     1
   ).toISOString();
 
-  // 1. Fetch Data (Increased limits for pagination)
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  thirtyDaysAgo.setHours(0, 0, 0, 0);
+  const thirtyDaysAgoISO = thirtyDaysAgo.toISOString();
+  const earliestTrendDate =
+    startOfLastMonth < thirtyDaysAgoISO ? startOfLastMonth : thirtyDaysAgoISO;
+
+  // 1. Fetch Data (Optimized targeted queries)
   const [
     postsResult,
     contactsResult,
-    subscribersResult,
+    totalSubsResult,
+    recentSubsResult,
+    baselineSubsResult,
     campaignsResult,
     quotaResult,
     auditLogsResult,
@@ -60,16 +79,27 @@ export default async function DashboardPage() {
       .from("posts")
       .select("id, title, status, created_at")
       .order("created_at", { ascending: false })
-      .limit(20), // Limit increased
+      .limit(20),
     supabase
       .from("contacts")
       .select("id, full_name, company, status, created_at")
       .order("created_at", { ascending: false })
-      .limit(50), // Limit increased for Table
+      .limit(50),
+    // Total count without pulling rows across network
+    supabase
+      .from("newsletter_subscribers")
+      .select("*", { count: "exact", head: true }),
+    // Only subscribers in trend/chart window
     supabase
       .from("newsletter_subscribers")
       .select("id, status, created_at")
+      .gte("created_at", earliestTrendDate)
       .order("created_at", { ascending: true }),
+    // Baseline count for 30-day cumulative chart
+    supabase
+      .from("newsletter_subscribers")
+      .select("*", { count: "exact", head: true })
+      .lt("created_at", thirtyDaysAgoISO),
     supabase
       .from("newsletter_campaigns")
       .select("id, subject, status, sent_at, total_sent, created_at")
@@ -88,7 +118,9 @@ export default async function DashboardPage() {
   // 2. Process Raw Data
   const posts = postsResult.data || [];
   const contacts = contactsResult.data || [];
-  const subscribers = subscribersResult.data || [];
+  const totalSubscribersCount = totalSubsResult.count || 0;
+  const recentSubscribers = recentSubsResult.data || [];
+  const baselineSubsCount = baselineSubsResult.count || 0;
   const campaigns = campaignsResult.data || [];
   const remainingQuota =
     typeof quotaResult.data === "number" ? quotaResult.data : 0;
@@ -118,7 +150,7 @@ export default async function DashboardPage() {
 
   const postTrend = getTrend(posts);
   const contactTrend = getTrend(contacts);
-  const subTrend = getTrend(subscribers);
+  const subTrend = getTrend(recentSubscribers);
 
   // --- 3. Build Stats Cards ---
   const stats: DashboardStat[] = [
@@ -144,7 +176,7 @@ export default async function DashboardPage() {
     },
     {
       label: "Total Subscribers",
-      value: subscribers.length,
+      value: totalSubscribersCount,
       href: "/admin/subscribers",
       iconName: "Mail",
       color: "purple",
@@ -178,7 +210,7 @@ export default async function DashboardPage() {
   }
 
   // --- 4. Process Chart Data (Daily) ---
-  const sortedSubs = [...subscribers].sort(
+  const sortedSubs = [...recentSubscribers].sort(
     (a, b) =>
       new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   );
@@ -193,8 +225,10 @@ export default async function DashboardPage() {
       month: "short",
       day: "numeric",
     });
-    const count = sortedSubs.filter((s) => new Date(s.created_at) <= d).length;
-    finalChartData.push({ date: label, count });
+    const recentCount = sortedSubs.filter(
+      (s) => new Date(s.created_at) <= d
+    ).length;
+    finalChartData.push({ date: label, count: baselineSubsCount + recentCount });
   }
 
   // --- 5. Activities Feed (Combined) ---
@@ -205,7 +239,7 @@ export default async function DashboardPage() {
       type: "post",
       title: p.title,
       status: p.status || "draft",
-      timestamp: p.created_at,
+      timestamp: p.created_at || new Date().toISOString(),
       href: `/admin/editor/${p.id}`,
     })
   );
@@ -217,7 +251,7 @@ export default async function DashboardPage() {
         type: "contact",
         title: `New inquiry: ${c.full_name}`,
         status: c.status || "new",
-        timestamp: c.created_at,
+        timestamp: c.created_at || new Date().toISOString(),
         href: `/admin/contacts`,
       })
     );
@@ -227,7 +261,7 @@ export default async function DashboardPage() {
       type: "campaign",
       title: c.subject,
       status: c.status || "pending",
-      timestamp: c.created_at,
+      timestamp: c.created_at || new Date().toISOString(),
       href: `/admin/newsletter/${c.id}`,
     })
   );
@@ -239,7 +273,7 @@ export default async function DashboardPage() {
         type: "audit_log",
         title: log.action,
         status: "info",
-        timestamp: log.created_at,
+        timestamp: log.created_at || new Date().toISOString(),
         href: "/admin/audit-log",
       })
     );

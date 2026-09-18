@@ -3,9 +3,9 @@
 
 import { useState, useEffect } from "react";
 import { Lock, Eye, EyeOff } from "lucide-react";
-import Toast from "@/components/shared/Toast";
+import toast from "react-hot-toast";
 import { changePassword } from "./actions";
-import { createBrowserClient } from "@supabase/ssr";
+import { getBrowserClient } from "@/lib/client";
 
 export default function ChangePassword() {
   const [oldPassword, setOldPassword] = useState("");
@@ -19,17 +19,9 @@ export default function ChangePassword() {
   const [passwordMatch, setPasswordMatch] = useState(true);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [countdown, setCountdown] = useState(5);
-  const [toast, setToast] = useState<{
-    show: boolean;
-    message: string;
-    type: "success" | "error";
-  }>({ show: false, message: "", type: "success" });
 
   // Create Supabase browser client
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = getBrowserClient();
 
   // Validate new password
   useEffect(() => {
@@ -43,6 +35,8 @@ export default function ChangePassword() {
     if (!/[A-Z]/.test(newPassword)) errors.push("One uppercase letter");
     if (!/[a-z]/.test(newPassword)) errors.push("One lowercase letter");
     if (!/[0-9]/.test(newPassword)) errors.push("One number");
+    if (!/[^A-Za-z0-9]/.test(newPassword))
+      errors.push("One symbol (e.g. !@#$)");
 
     setValidationErrors(errors);
   }, [newPassword]);
@@ -83,7 +77,7 @@ export default function ChangePassword() {
     if (result.success) {
       setShowSuccessModal(true);
     } else {
-      setToast({ show: true, message: result.message, type: "error" });
+      toast.error(result.message);
       setIsSubmitting(false);
     }
   };
@@ -136,14 +130,6 @@ export default function ChangePassword() {
 
   return (
     <>
-      {toast.show && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast({ ...toast, show: false })}
-        />
-      )}
-
       {/* FIX: Changed min-h-screen to h-full to avoid double scrolling */}
       <div className="flex items-center justify-center h-full p-4">
         <div className="w-full max-w-md">

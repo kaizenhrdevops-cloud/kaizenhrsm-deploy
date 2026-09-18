@@ -13,8 +13,25 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "KaizenHR",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL || "https://kaizenhrms.com"
+  ),
+  title: {
+    default: "KaizenHR — Malaysia's Tier 1 Enterprise HR Solution",
+    template: "%s | KaizenHR",
+  },
   description: "Revolutionize HR Management with KaizenHR",
+  openGraph: {
+    type: "website",
+    siteName: "KaizenHR",
+    title: "KaizenHR — Malaysia's Tier 1 Enterprise HR Solution",
+    description: "Revolutionize HR Management with KaizenHR",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "KaizenHR — Malaysia's Tier 1 Enterprise HR Solution",
+    description: "Revolutionize HR Management with KaizenHR",
+  },
 };
 
 export default function RootLayout({

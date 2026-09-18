@@ -1,6 +1,7 @@
 // src/components/sections/AwardClient.tsx
 "use client";
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import Container from "../layout/Container";
 
 interface AwardClientProps {
@@ -13,12 +14,13 @@ const AwardClient = ({ image1, image2 }: AwardClientProps) => {
   const images = [image1, image2];
 
   useEffect(() => {
+    if (images.length <= 1) return;
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % images.length);
     }, 3000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [images.length]);
 
   return (
     <section className="py-20 lg:py-32 bg-white">
@@ -31,11 +33,13 @@ const AwardClient = ({ image1, image2 }: AwardClientProps) => {
           >
             {images.map((img, index) => (
               <div key={index} className="w-full flex-shrink-0">
-                <div className="mx-auto max-w-sm aspect-[3/4] bg-slate-50 rounded-lg overflow-hidden shadow-lg">
-                  <img
+                <div className="relative mx-auto max-w-sm aspect-[3/4] bg-slate-50 rounded-lg overflow-hidden shadow-lg">
+                  <Image
                     src={img}
                     alt={`Award ${index + 1}`}
-                    className="w-full h-full object-cover"
+                    fill
+                    sizes="(max-width: 768px) 100vw, 384px"
+                    className="object-cover"
                   />
                 </div>
               </div>
@@ -62,10 +66,12 @@ const AwardClient = ({ image1, image2 }: AwardClientProps) => {
           {/* Left Image - Hidden on mobile */}
           <div className="hidden lg:flex w-64 h-80 items-center justify-center flex-shrink-0">
             <div className="relative w-full h-full bg-slate-50 rounded-lg overflow-hidden shadow-lg">
-              <img
+              <Image
                 src={image1}
                 alt="msc_apicta logo"
-                className="w-full h-full object-cover"
+                fill
+                sizes="256px"
+                className="object-cover"
               />
             </div>
           </div>
@@ -102,11 +108,15 @@ const AwardClient = ({ image1, image2 }: AwardClientProps) => {
           <div className="hidden lg:flex w-80 h-96 items-center justify-center flex-shrink-0">
             <div className="relative w-full h-full">
               <div className="absolute inset-0 bg-slate-100 rounded transform rotate-3"></div>
-              <img
-                src={image2}
-                alt="msc_apicta award brochure"
-                className="relative w-full h-full object-contain rounded shadow-xl"
-              />
+              <div className="relative w-full h-full rounded shadow-xl overflow-hidden">
+                <Image
+                  src={image2}
+                  alt="msc_apicta award brochure"
+                  fill
+                  sizes="320px"
+                  className="object-contain"
+                />
+              </div>
             </div>
           </div>
         </div>

@@ -2,163 +2,120 @@
 
 "use client";
 
-import React, { useState, FormEvent, useEffect } from "react";
+import React from "react";
 import Link from "next/link";
 import {
-  hrmsSubmenus,
   resourcesSubmenus,
   companySubmenus,
 } from "@/data/submenus";
-import {
-  Facebook,
-  Linkedin,
-  Twitter,
-  Youtube,
-  Instagram,
-  Github,
-  Gitlab,
-  Twitch,
-  Dribbble,
-  Slack,
-  Globe,
-  Apple,
-  Send,
-  Loader2,
-  Smartphone,
-} from "lucide-react";
-import { getPublicSettings, type PublicSettings } from "@/lib/public-settings";
+import { FaApple, FaGooglePlay } from "react-icons/fa";
+import { getSocialIcon } from "./social-icons";
+import type { PublicSettings } from "@/lib/public-settings";
+import { useSettings } from "./SettingsProvider";
+import { useHrmsSubmenus } from "./navbar/useHrmsSubmenus";
+import NewsletterForm from "./NewsletterForm";
 
-// Icon mapping helper
-const getSocialIcon = (platformName: string) => {
-  const name = platformName.toLowerCase().trim();
-  if (name.includes("facebook")) return Facebook;
-  if (name.includes("linkedin")) return Linkedin;
-  if (name.includes("twitter") || name.includes("x.com") || name === "x")
-    return Twitter;
-  if (name.includes("youtube")) return Youtube;
-  if (name.includes("instagram")) return Instagram;
-  if (name.includes("github")) return Github;
-  if (name.includes("gitlab")) return Gitlab;
-  if (name.includes("twitch")) return Twitch;
-  if (name.includes("dribbble")) return Dribbble;
-  if (name.includes("slack")) return Slack;
-  if (name.includes("tiktok")) return Smartphone; // Approximate icon
-  return Globe; // Default fallback
+const FALLBACK_SETTINGS: PublicSettings = {
+  company_slogan: "Malaysia's Tier 1 Enterprise HR Solution",
+  contact_email: "inquiry@kaizenhrms.com",
+  contact_phone: "+603-62010242",
+  social_links: "[]",
+  link_app_store: "#",
+  link_google_play: "#",
+  footer_copyright_text: "© KaiZenHR Sdn Bhd 2025. All Rights Reserved.",
 };
 
-const Footer = () => {
-  const [email, setEmail] = useState("");
-  const [message, setMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [isError, setIsError] = useState(false);
+function parseSocialLinks(raw: string | undefined) {
+  try {
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
 
-  const [settings, setSettings] = useState<PublicSettings>({
-    company_slogan: "Malaysia's Tier 1 Enterprise HR Solution",
-    contact_email: "inquiry@kaizenhrms.com",
-    contact_phone: "+603-62010242",
-    social_links: "[]",
-    link_app_store: "#",
-    link_google_play: "#",
-    footer_copyright_text: "© KaiZenHR Sdn Bhd 2025. All Rights Reserved.",
-  });
+// Client component reading settings from (public)/layout's provider —
+// no own fetch, so no client-side waterfall (see SettingsProvider).
+const Footer = () => {
+  const settings: PublicSettings = {
+    ...FALLBACK_SETTINGS,
+    ...useSettings(),
+  };
 
   // Parse social links safely
-  const socialLinks = React.useMemo(() => {
-    try {
-      const parsed = settings.social_links
-        ? JSON.parse(settings.social_links)
-        : [];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch (e) {
-      return [];
-    }
-  }, [settings.social_links]);
+  const socialLinks = parseSocialLinks(settings.social_links);
 
-  useEffect(() => {
-    const loadSettings = async () => {
-      const data = await getPublicSettings();
-      setSettings((prev) => ({ ...prev, ...data }));
-    };
-    loadSettings();
-  }, []);
+  // Static HRMS links + any NEW published CMS pages from /admin/hrms.
+  const hrmsSubmenus = useHrmsSubmenus();
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setMessage("");
-    setIsError(false);
-
-    if (!email) {
-      setMessage("Email address is required.");
-      setIsError(true);
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      const response = await fetch("/api/newsletter/subscribe", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Something went wrong.");
-      }
-
-      setMessage(data.message);
-      setIsError(false);
-      setEmail("");
-    } catch (error: any) {
-      setMessage(error.message);
-      setIsError(true);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Split HRMS modules into two balanced columns for robust multi-device layout
+  const midpoint = Math.ceil(hrmsSubmenus.length / 2);
+  const hrmsCol1 = hrmsSubmenus.slice(0, midpoint);
+  const hrmsCol2 = hrmsSubmenus.slice(midpoint);
 
   return (
     <footer className="bg-[#008080] text-white">
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-16">
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-14 sm:py-16">
         {/* TOP SECTION: LINKS */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-x-8 gap-y-10 mb-12">
-          {/* Company Info */}
-          <div className="col-span-2 sm:col-span-2 lg:col-span-1">
-            <h2 className="text-2xl font-bold mb-4">Kaizen</h2>
-            <p className="text-blue-200">{settings.company_slogan}</p>
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-x-8 gap-y-10 mb-12">
+          {/* Column 1: Company Info */}
+          <div className="md:col-span-3 xl:col-span-3 space-y-3">
+            <h2 className="text-2xl font-bold tracking-tight text-white">
+              Kaizen
+            </h2>
+            <p className="text-sm text-teal-100/85 leading-relaxed max-w-xs">
+              {settings.company_slogan}
+            </p>
           </div>
 
-          {/* HRMS Links */}
-          <div className="sm:col-span-1 lg:col-span-2">
-            <h3 className="text-lg font-semibold mb-4">HRMS</h3>
-            <ul className="space-y-2 text-blue-200 md:columns-2">
-              {hrmsSubmenus.map((item, index) => (
-                <li key={index} className="break-inside-avoid">
-                  <Link
-                    href={item.path}
-                    className="hover:text-white transition-colors"
-                  >
-                    {item.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="flex flex-col gap-y-12 lg:contents">
-            {/* Resources */}
-            <div className="lg:col-span-1">
-              <h3 className="text-lg font-semibold mb-4">Resources</h3>
-              <ul className="space-y-2 text-blue-200">
-                {resourcesSubmenus.map((item, index) => (
-                  <li key={index}>
+          {/* Columns 2 & 3: HRMS Modules (2 sub-columns) */}
+          <div className="md:col-span-6 xl:col-span-6">
+            <h3 className="text-base font-semibold uppercase tracking-wider text-white mb-4">
+              HRMS
+            </h3>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-2.5 text-sm text-teal-100/80">
+              <ul className="space-y-2.5 min-w-0">
+                {hrmsCol1.map((item, index) => (
+                  <li key={index} className="truncate">
                     <Link
                       href={item.path}
-                      className="hover:text-white transition-colors"
+                      className="hover:text-white transition-colors duration-150"
+                      title={item.name}
+                    >
+                      {item.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <ul className="space-y-2.5 min-w-0">
+                {hrmsCol2.map((item, index) => (
+                  <li key={index} className="truncate">
+                    <Link
+                      href={item.path}
+                      className="hover:text-white transition-colors duration-150"
+                      title={item.name}
+                    >
+                      {item.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          {/* Columns 4 & 5: Resources & Company */}
+          <div className="md:col-span-3 xl:col-span-3 grid grid-cols-2 md:grid-cols-1 xl:grid-cols-2 gap-x-6 gap-y-8">
+            {/* Resources */}
+            <div>
+              <h3 className="text-base font-semibold uppercase tracking-wider text-white mb-4">
+                Resources
+              </h3>
+              <ul className="space-y-2.5 text-sm text-teal-100/80">
+                {resourcesSubmenus.map((item, index) => (
+                  <li key={index} className="truncate">
+                    <Link
+                      href={item.path}
+                      className="hover:text-white transition-colors duration-150"
                     >
                       {item.name}
                     </Link>
@@ -168,14 +125,16 @@ const Footer = () => {
             </div>
 
             {/* Company */}
-            <div className="lg:col-span-1">
-              <h3 className="text-lg font-semibold mb-4">Company</h3>
-              <ul className="space-y-2 text-blue-200">
+            <div>
+              <h3 className="text-base font-semibold uppercase tracking-wider text-white mb-4">
+                Company
+              </h3>
+              <ul className="space-y-2.5 text-sm text-teal-100/80">
                 {companySubmenus.map((item, index) => (
-                  <li key={index}>
+                  <li key={index} className="truncate">
                     <Link
                       href={item.path}
-                      className="hover:text-white transition-colors"
+                      className="hover:text-white transition-colors duration-150"
                     >
                       {item.name}
                     </Link>
@@ -194,40 +153,9 @@ const Footer = () => {
           {/* Newsletter */}
           <div>
             <h3 className="text-lg font-semibold mb-4">
-              Subscribe to Kaizen's Newsletter
+              Subscribe to Kaizen&apos;s Newsletter
             </h3>
-            <form onSubmit={handleSubmit}>
-              <div className="flex bg-[#525861] rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-yellow-400">
-                <input
-                  type="email"
-                  placeholder="Your business email"
-                  className="w-full bg-transparent px-4 py-3 text-white placeholder-gray-400 focus:outline-none"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={isLoading}
-                />
-                <button
-                  type="submit"
-                  className="bg-[#4a4f57] hover:bg-gray-500 text-white px-5 py-3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <Loader2 className="animate-spin" size={20} />
-                  ) : (
-                    <Send size={20} />
-                  )}
-                </button>
-              </div>
-            </form>
-            {message && (
-              <p
-                className={`mt-2 text-sm ${
-                  isError ? "text-red-400" : "text-green-300"
-                }`}
-              >
-                {message}
-              </p>
-            )}
+            <NewsletterForm />
           </div>
 
           {/* Social Media - Dynamic List */}
@@ -260,41 +188,37 @@ const Footer = () => {
             <h3 className="text-lg font-semibold mb-4">
               Download the Mobile App
             </h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
               <a
                 href={settings.link_app_store || "#"}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-black hover:bg-gray-800 px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+                className="bg-black hover:bg-gray-800 px-3 py-2 sm:px-4 sm:py-2 rounded-lg flex items-center space-x-2 transition-colors min-w-0"
               >
-                <Apple size={24} />
-                <div className="text-left">
-                  <div className="text-xs">Download on the</div>
-                  <div className="font-semibold">App Store</div>
+                <FaApple size={24} className="shrink-0 text-white" />
+                <div className="text-left min-w-0">
+                  <div className="text-[10px] sm:text-xs text-gray-300 truncate leading-tight">
+                    Download on the
+                  </div>
+                  <div className="font-semibold text-xs sm:text-sm text-white whitespace-nowrap truncate leading-tight">
+                    App Store
+                  </div>
                 </div>
               </a>
               <a
                 href={settings.link_google_play || "#"}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-black hover:bg-gray-800 px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+                className="bg-black hover:bg-gray-800 px-3 py-2 sm:px-4 sm:py-2 rounded-lg flex items-center space-x-2 transition-colors min-w-0"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                >
-                  <path
-                    d="M6.375 21.25c-.287 0-.575-.063-.844-.194a1.25 1.25 0 0 1-.861-1.22l.983-6.685L.23 7.828a1.25 1.25 0 0 1 .687-2.132l6.76-.585L10.66.31a1.25 1.25 0 0 1 2.238 0l2.982 4.801 6.76.585a1.25 1.25 0 0 1 .688 2.132l-5.423 5.324.983 6.685a1.25 1.25 0 0 1-1.705 1.413L12 18.273l-5.781 3.783a1.248 1.248 0 0 1-.844.194z"
-                    opacity=".4"
-                  />
-                  <path d="M21.393 9.4l-9.358-5.347a1.25 1.25 0 0 0-1.875 1.083v10.693a1.25 1.25 0 0 0 1.875 1.083l9.358-5.347a1.25 1.25 0 0 0 0-2.166z" />
-                </svg>
-                <div className="text-left">
-                  <div className="text-xs">GET IT ON</div>
-                  <div className="font-semibold">Google Play</div>
+                <FaGooglePlay size={20} className="shrink-0 text-white" />
+                <div className="text-left min-w-0">
+                  <div className="text-[10px] sm:text-xs text-gray-300 truncate leading-tight">
+                    GET IT ON
+                  </div>
+                  <div className="font-semibold text-xs sm:text-sm text-white whitespace-nowrap truncate leading-tight">
+                    Google Play
+                  </div>
                 </div>
               </a>
             </div>
@@ -302,7 +226,7 @@ const Footer = () => {
         </div>
 
         {/* Copyright Section */}
-        <div className="mt-12 pt-8 border-t border-white/20 text-center text-blue-200 text-sm">
+        <div className="mt-12 pt-8 border-t border-white/15 text-center text-teal-100/70 text-xs sm:text-sm">
           <p>
             {settings.footer_copyright_text ||
               "© KaiZenHR Sdn Bhd 2025. All Rights Reserved."}

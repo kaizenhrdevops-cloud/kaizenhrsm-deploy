@@ -10,6 +10,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { useEffect, useState } from "react";
 
 type ChartData = {
   date: string;
@@ -17,13 +18,43 @@ type ChartData = {
 };
 
 export default function SubscriberChart({ data }: { data: ChartData[] }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
+        <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-6">
+          Subscriber Growth
+        </h3>
+        <div className="h-[300px] w-full animate-pulse bg-slate-100 dark:bg-slate-700/50 rounded-lg" />
+      </div>
+    );
+  }
+
+  if (!data || data.length === 0) {
+    return (
+      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
+        <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-6">
+          Subscriber Growth
+        </h3>
+        <div className="h-[300px] w-full flex items-center justify-center text-slate-400 text-sm">
+          No subscriber data yet.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
       <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-6">
         Subscriber Growth
       </h3>
-      <div className="h-[300px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
+      <div className="w-full min-w-0 overflow-hidden">
+        <ResponsiveContainer width="100%" height={300} minWidth={0} debounce={50}>
           <AreaChart
             data={data}
             margin={{ top: 10, right: 10, left: -20, bottom: 0 }}

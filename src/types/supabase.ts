@@ -171,6 +171,107 @@ export type Database = {
         }
         Relationships: []
       }
+      hrms_features: {
+        Row: {
+          bg_color: string
+          created_at: string | null
+          description: string
+          id: string
+          layout: string
+          media_alt: string
+          media_src: string
+          media_type: string
+          module_slug: string
+          order_index: number
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          bg_color?: string
+          created_at?: string | null
+          description?: string
+          id?: string
+          layout?: string
+          media_alt?: string
+          media_src?: string
+          media_type?: string
+          module_slug: string
+          order_index?: number
+          title?: string
+          updated_at?: string | null
+        }
+        Update: {
+          bg_color?: string
+          created_at?: string | null
+          description?: string
+          id?: string
+          layout?: string
+          media_alt?: string
+          media_src?: string
+          media_type?: string
+          module_slug?: string
+          order_index?: number
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hrms_features_module_slug_fkey"
+            columns: ["module_slug"]
+            isOneToOne: false
+            referencedRelation: "hrms_modules"
+            referencedColumns: ["slug"]
+          },
+        ]
+      }
+      hrms_modules: {
+        Row: {
+          created_at: string | null
+          hero_bg: string
+          icon_name: string
+          image_ratio: string
+          image_src: string
+          name: string
+          nav_description: string
+          order_index: number
+          outro_text: string | null
+          slug: string
+          status: string
+          tagline: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          hero_bg?: string
+          icon_name?: string
+          image_ratio?: string
+          image_src?: string
+          name: string
+          nav_description?: string
+          order_index?: number
+          outro_text?: string | null
+          slug: string
+          status?: string
+          tagline?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          hero_bg?: string
+          icon_name?: string
+          image_ratio?: string
+          image_src?: string
+          name?: string
+          nav_description?: string
+          order_index?: number
+          outro_text?: string | null
+          slug?: string
+          status?: string
+          tagline?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       newsletter_campaigns: {
         Row: {
           completed_at: string | null

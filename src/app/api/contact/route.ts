@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getServiceClient } from "@/lib/supabase-admin";
+import { getPublicSettings } from "@/lib/public-settings";
+import { verifyTurnstileToken } from "@/lib/turnstile";
 import { Resend } from "resend";
 import {
   userConfirmationTemplate,
@@ -9,34 +11,19 @@ import {
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Initialize Supabase client with Service Role Key
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-async function verifyTurnstileToken(token: string): Promise<boolean> {
-  const response = await fetch(
-    "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        secret: process.env.TURNSTILE_SECRET_KEY,
-        response: token,
-      }),
-    }
-  );
-  const data = await response.json();
-  return data.success;
-}
+// Shared service-role client (see src/lib/supabase-admin.ts)
+const supabase = getServiceClient();
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== "object" || !body.formData || typeof body.formData !== "object") {
+      return NextResponse.json({ error: "Invalid request payload." }, { status: 400 });
+    }
+
     const { formData, captchaToken } = body;
 
-    if (!captchaToken) {
+    if (!captchaToken || typeof captchaToken !== "string") {
       return NextResponse.json({ error: "Captcha verification required" }, { status: 400 });
     }
     const isCaptchaValid = await verifyTurnstileToken(captchaToken);
@@ -44,27 +31,37 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Captcha verification failed. Please try again." }, { status: 400 });
     }
 
-    const requiredFields = ["fullName", "contactNumber", "company", "email", "companySize"];
+    const requiredFields = ["fullName", "contactNumber", "company", "email", "companySize"] as const;
     for (const field of requiredFields) {
-      if (!formData[field]) {
+      const val = formData[field];
+      if (typeof val !== "string" || !val.trim()) {
         return NextResponse.json({ error: `Missing required field: ${field}` }, { status: 400 });
       }
     }
-    
+
+    const sanitizedData = {
+      fullName: String(formData.fullName).trim().slice(0, 120),
+      contactNumber: String(formData.contactNumber).trim().slice(0, 50),
+      company: String(formData.company).trim().slice(0, 150),
+      email: String(formData.email).trim().toLowerCase().slice(0, 255),
+      companySize: String(formData.companySize).trim().slice(0, 50),
+      message: typeof formData.message === "string" ? formData.message.trim().slice(0, 5000) : "",
+    };
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
+    if (!emailRegex.test(sanitizedData.email)) {
       return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
     }
 
     const { data: contact, error: dbError } = await supabase
       .from("contacts")
       .insert({
-        full_name: formData.fullName,
-        contact_number: formData.contactNumber,
-        company: formData.company,
-        business_email: formData.email,
-        company_size: formData.companySize,
-        message: formData.message || "",
+        full_name: sanitizedData.fullName,
+        contact_number: sanitizedData.contactNumber,
+        company: sanitizedData.company,
+        business_email: sanitizedData.email,
+        company_size: sanitizedData.companySize,
+        message: sanitizedData.message,
         status: "new",
       })
       .select()
@@ -75,38 +72,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Failed to save contact information" }, { status: 500 });
     }
 
-    // --- DYNAMIC SETTINGS ---
-    const { data: settingsData } = await supabase
-      .from("system_settings")
-      .select("key, value")
-      .in("key", ["admin_notification_email", "email_sender_name", "email_sender_address"]);
-
-    const settings: Record<string, string> = {};
-    if (settingsData) {
-      settingsData.forEach((s) => {
-        try {
-           const parsed = JSON.parse(s.value);
-           settings[s.key] = typeof parsed === 'string' ? parsed : s.value;
-        } catch {
-           settings[s.key] = s.value;
-        }
-      });
-    }
-
-    const adminEmail = settings["admin_notification_email"] || "kaizenhrdev@kaizenhr.my";
-    const senderName = settings["email_sender_name"] || "KaizenHR";
-    // Hierarchy: DB Setting > Env Var > Fallback
-    const senderEmail = settings["email_sender_address"] || process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
+    // --- DYNAMIC SETTINGS (cross-request cached, see lib/public-settings) ---
+    const cachedSettings = await getPublicSettings();
+    const adminEmail =
+      process.env.ADMIN_NOTIFICATION_EMAIL ||
+      cachedSettings.admin_notification_email ||
+      "kaizenhr.devops@gmail.com";
+    const senderName = cachedSettings.email_sender_name || "KaizenHR";
+    // Hierarchy: Env Var > DB Setting > Fallback
+    const senderEmail =
+      process.env.RESEND_FROM_EMAIL ||
+      cachedSettings.email_sender_address ||
+      "onboarding@resend.dev";
     const fromAddress = `${senderName} <${senderEmail}>`;
     // ------------------------
 
     const contactData: ContactFormData = {
-      fullName: formData.fullName,
-      contactNumber: formData.contactNumber,
-      company: formData.company,
-      email: formData.email,
-      companySize: formData.companySize,
-      message: formData.message || "",
+      fullName: sanitizedData.fullName,
+      contactNumber: sanitizedData.contactNumber,
+      company: sanitizedData.company,
+      email: sanitizedData.email,
+      companySize: sanitizedData.companySize,
+      message: sanitizedData.message,
     };
 
     const emailLogs: any[] = [];
@@ -114,7 +101,7 @@ export async function POST(req: NextRequest) {
     try {
       const { error: userEmailError } = await resend.emails.send({
         from: fromAddress,
-        to: formData.email,
+        to: sanitizedData.email,
         subject: "Thank You for Contacting KaizenHR",
         html: userConfirmationTemplate(contactData),
       });
@@ -134,7 +121,7 @@ export async function POST(req: NextRequest) {
       const { error: adminEmailError } = await resend.emails.send({
         from: fromAddress,
         to: adminEmail,
-        subject: `🔔 New Contact Form Submission from ${formData.company}`,
+        subject: `🔔 New Contact Form Submission from ${sanitizedData.company}`,
         html: adminNotificationTemplate(contactData),
       });
       if (adminEmailError) console.error("Resend Error (Admin):", adminEmailError);

@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { createBrowserClient } from "@supabase/ssr";
+import { getBrowserClient } from "@/lib/client";
 import DataTable, { type Column } from "@/components/shared/DataTable";
+import StatusBadge from "@/components/ui/StatusBadge";
 import {
   Building2,
   Download,
@@ -17,7 +18,7 @@ import {
 } from "lucide-react";
 import ContactDetailModal from "@/components/admin/ContactDetailModal";
 import ConfirmDeleteModal from "@/components/shared/ConfirmDeleteModal";
-import Toast from "@/components/shared/Toast";
+import toast from "react-hot-toast";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 
 // --- Types ---
@@ -54,27 +55,6 @@ const StatCard = ({ title, count, icon: Icon, colorClass }: any) => (
   </div>
 );
 
-const StatusBadge = ({ status }: { status: string }) => {
-  const styles: Record<string, string> = {
-    new: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-    contacted:
-      "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-    replied:
-      "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-    closed: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400",
-  };
-
-  const displayStatus = status?.toLowerCase() || "new";
-
-  return (
-    <span
-      className={`px-2.5 py-1 rounded-full text-xs font-medium ${styles[displayStatus] || "bg-gray-100 text-gray-700"}`}
-    >
-      {displayStatus.charAt(0).toUpperCase() + displayStatus.slice(1)}
-    </span>
-  );
-};
-
 export default function ContactsPage() {
   const [contacts, setContacts] = useState<ContactSubmission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,25 +71,11 @@ export default function ContactsPage() {
     useState<ContactSubmission | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Toast State
-  const [toastState, setToastState] = useState<{
-    show: boolean;
-    message: string;
-    type: "success" | "error";
-  }>({
-    show: false,
-    message: "",
-    type: "success",
-  });
-
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sizeFilter, setSizeFilter] = useState<string>("all");
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = getBrowserClient();
 
   useEffect(() => {
     fetchContacts();
@@ -117,7 +83,8 @@ export default function ContactsPage() {
   }, []);
 
   const showToast = (message: string, type: "success" | "error") => {
-    setToastState({ show: true, message, type });
+    if (type === "success") toast.success(message);
+    else toast.error(message);
   };
 
   const fetchUserRole = async () => {
@@ -130,7 +97,8 @@ export default function ContactsPage() {
         .select("role")
         .eq("id", user.id)
         .single();
-      setUserRole(profile?.role || null);
+      const role = profile?.role;
+      setUserRole(role === "admin" || role === "super_admin" ? role : null);
     }
   };
 
@@ -387,13 +355,7 @@ export default function ContactsPage() {
         </p>
       </div>
 
-      {toastState.show && (
-        <Toast
-          message={toastState.message}
-          type={toastState.type}
-          onClose={() => setToastState((prev) => ({ ...prev, show: false }))}
-        />
-      )}
+      {/* Info Cards */}
 
       {/* Info Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

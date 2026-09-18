@@ -1,8 +1,8 @@
 "use server";
 
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createClient } from "@/lib/server";
 import type { Database } from "@/types/supabase";
+import { getServiceClient } from "@/lib/supabase-admin";
 import { Resend } from "resend";
 import { postNewsletterTemplate } from "@/lib/email-templates/post-newsletter-template";
 
@@ -36,30 +36,9 @@ function generatePreviewFromBlocks(blocks: any[]): string | null {
   return null;
 }
 
-async function createClient() {
-  const cookieStore = await cookies();
-  return createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get: (name: string) => cookieStore.get(name)?.value,
-      },
-    }
-  );
-}
 
 async function createAdminClient() {
-  const cookieStore = await cookies();
-  return createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: {
-        get: (name: string) => cookieStore.get(name)?.value,
-      },
-    }
-  );
+  return getServiceClient();
 }
 
 // NEW: Helper to fetch system setting safely
@@ -355,7 +334,9 @@ export async function processNewsletterQueue() {
     // 2. --- Find a Campaign to Process ---
     const { data: campaign, error: campaignError } = await supabaseAdmin
       .from("newsletter_campaigns")
-      .select("*")
+      .select(
+        "id, post_id, subject, preview_text, status, scheduled_at, total_recipients, sent_count, queued_count, total_failed"
+      )
       .in("status", ["scheduled", "in_progress"])
       .order("scheduled_at", { ascending: true })
       .limit(1)
@@ -384,12 +365,17 @@ export async function processNewsletterQueue() {
       throw new Error(`Post ${campaign.post_id} not found for campaign.`);
     }
 
+    // Small per-run batch: fits Vercel free 10s timeout + Resend free
+    // 100/day. Cron runs hourly; each tick sends at most BATCH_SIZE.
+    const BATCH_SIZE = 25;
+    const batchLimit = Math.min(remaining_quota, BATCH_SIZE);
+
     const { data: batch, error: batchError } = await supabaseAdmin
       .from("newsletter_send_log")
       .select("id, email, subscriber_id")
       .eq("campaign_id", campaign.id)
       .eq("status", "queued")
-      .limit(remaining_quota);
+      .limit(batchLimit);
 
     if (batchError) throw new Error("Failed to fetch recipient batch.");
 
@@ -418,22 +404,33 @@ export async function processNewsletterQueue() {
         : "company/developments";
     const readMoreUrl = `${siteUrl}/${postPath}/${post.slug}`;
 
+    // Bulk-fetch unsubscribe tokens (1 query instead of N).
+    const subscriberIds = [...new Set(batch.map((r) => r.subscriber_id))];
+    const { data: tokenRows, error: tokenError } = await supabaseAdmin
+      .from("newsletter_subscribers")
+      .select("id, unsubscribe_token")
+      .in("id", subscriberIds);
+
+    if (tokenError) throw new Error("Failed to fetch unsubscribe tokens.");
+
+    const tokenBySubscriberId = new Map(
+      (tokenRows || []).map((s) => [s.id, s.unsubscribe_token])
+    );
+
     const sendPromises = batch.map(async (recipient) => {
-      const { data: sub, error: subError } = await supabaseAdmin
-        .from("newsletter_subscribers")
-        .select("unsubscribe_token")
-        .eq("id", recipient.subscriber_id)
-        .single();
-      
-      if (subError || !sub?.unsubscribe_token) {
+      const unsubscribeToken = tokenBySubscriberId.get(
+        recipient.subscriber_id
+      );
+
+      if (!unsubscribeToken) {
         console.error(`CRON: Skipping ${recipient.email}, no unsubscribe token found.`);
         return Promise.reject({
           message: "Unsubscribe token not found",
-          log_id: recipient.id, 
+          log_id: recipient.id,
         });
       }
-      
-      const unsubscribeUrl = `${siteUrl}/api/newsletter/unsubscribe?id=${sub.unsubscribe_token}`;
+
+      const unsubscribeUrl = `${siteUrl}/api/newsletter/unsubscribe?id=${unsubscribeToken}`;
 
       return resend.emails.send({
         from: process.env.RESEND_FROM_EMAIL!,

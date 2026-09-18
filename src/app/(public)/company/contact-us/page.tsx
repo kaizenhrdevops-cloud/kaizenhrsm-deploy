@@ -1,198 +1,33 @@
 // src/app/(public)/company/contact-us/page.tsx
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
-import {
-  MapPin,
-  Mail,
-  Phone,
-  Send,
-  CheckCircle,
-  AlertCircle,
-} from "lucide-react";
+import React, { useState } from "react";
+import { CheckCircle, AlertCircle, Send } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-// IMPORT SETTINGS HELPER
-import { getPublicSettings, type PublicSettings } from "@/lib/public-settings";
-
-// --- 1. FIX: Move the interface declaration here and make it complete ---
-declare global {
-  interface Window {
-    turnstile: {
-      render: (
-        element: string | HTMLElement,
-        options: {
-          sitekey: string;
-          callback: (token: string) => void;
-          "error-callback": () => void;
-          "expired-callback": () => void;
-        }
-      ) => string;
-      reset: (widgetId: string) => void;
-      remove: (widgetId: string) => void;
-    };
-    // Add the callback function types to the window interface too
-    onTurnstileSuccess: (token: string) => void;
-    onTurnstileError: () => void;
-    onTurnstileExpired: () => void;
-  }
-}
-// -----------------------------------------------------------------------
+import type { PublicSettings } from "@/lib/public-settings";
+import { useSettings } from "@/components/layout/SettingsProvider";
+import ContactInfoCards from "./ContactInfoCards";
+import ContactForm, { type SubmitStatus } from "./ContactForm";
 
 const ContactUsPage = () => {
-  const [formData, setFormData] = useState({
-    fullName: "",
-    contactNumber: "",
-    company: "",
-    email: "",
-    companySize: "",
-    message: "",
-  });
-
-  // --- NEW: Settings State ---
-  const [settings, setSettings] = useState<PublicSettings>({
+  // Settings come from (public)/layout's provider (one cached read per
+  // request) with local fallbacks — no own fetch.
+  const ctx = useSettings();
+  const [settings] = useState<PublicSettings>({
     contact_address:
       "Suite D-05-01, 5th Floor, Block D,\nPlaza Mont Kiara,\n50480 Kuala Lumpur, Malaysia",
     contact_email: "inquiry@kaizenhrms.com",
     contact_phone: "+603-62010242",
-    // Default map URL if none provided
     integration_google_maps_embed:
       "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3983.72930091868!2d101.64939557528581!3d3.165847553049145!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31cc48f1965b1f3f%3A0xd37a5feb10a562f9!2sKaiZenHR%20Sdn%20Bhd!5e0!3m2!1sen!2smy!4v1763520954012!5m2!1sen!2smy",
+    ...ctx,
   });
 
-  useEffect(() => {
-    const loadSettings = async () => {
-      const data = await getPublicSettings();
-      setSettings((prev) => ({ ...prev, ...data }));
-    };
-    loadSettings();
-  }, []);
-  // ---------------------------
-
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState<{
-    type: "success" | "error" | null;
-    message: string;
-  }>({ type: null, message: "" });
-
-  const turnstileRef = useRef<HTMLDivElement>(null);
-  const widgetIdRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    const script = document.createElement("script");
-    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
-    script.async = true;
-    script.defer = true;
-    document.body.appendChild(script);
-
-    return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    // Assign directly without @ts-ignore now that we've updated the interface
-    window.onTurnstileSuccess = (token: string) => {
-      setCaptchaToken(token);
-    };
-    window.onTurnstileError = () => {
-      setCaptchaToken(null);
-      setSubmitStatus({
-        type: "error",
-        message: "Captcha verification failed. Please try again.",
-      });
-    };
-    window.onTurnstileExpired = () => {
-      setCaptchaToken(null);
-    };
-  }, []);
-
-  const handleInputChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >
-  ) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitStatus({ type: null, message: "" });
-
-    if (!captchaToken) {
-      setSubmitStatus({
-        type: "error",
-        message: "Please complete the captcha verification",
-      });
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      const response = await fetch("/api/contact", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          formData,
-          captchaToken,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to submit form");
-      }
-
-      setSubmitStatus({
-        type: "success",
-        message:
-          "Thank you! Your message has been sent successfully. We'll get back to you soon.",
-      });
-
-      setFormData({
-        fullName: "",
-        contactNumber: "",
-        company: "",
-        email: "",
-        companySize: "",
-        message: "",
-      });
-
-      // --- 2. FIX: Safe check for window.turnstile ---
-      if (
-        typeof window !== "undefined" &&
-        window.turnstile &&
-        widgetIdRef.current
-      ) {
-        // window.turnstile.reset(widgetIdRef.current);
-      }
-      // -----------------------------------------------
-
-      setCaptchaToken(null);
-
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    } catch (error: any) {
-      setSubmitStatus({
-        type: "error",
-        message: error.message || "Something went wrong. Please try again.",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const inputClassName =
-    "w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none transition-all duration-300 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed shadow-sm";
+  const [submitStatus, setSubmitStatus] = useState<SubmitStatus>({
+    type: null,
+    message: "",
+  });
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -204,7 +39,7 @@ const ContactUsPage = () => {
           <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-10"></div>
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-20 text-center">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold mb-6 tracking-tight">
-              Let's Start a Conversation
+              Let&apos;s Start a Conversation
             </h1>
             <p className="text-xl md:text-2xl text-blue-100 mb-8 max-w-3xl mx-auto leading-relaxed font-light">
               Whether you have questions about our modules or need a custom
@@ -243,85 +78,7 @@ const ContactUsPage = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
             {/* Left Column: Contact Info & Map */}
-            <div className="space-y-12">
-              <div>
-                <h2 className="text-4xl font-extrabold text-gray-900 mb-4 tracking-tight">
-                  Contact Information
-                </h2>
-                <p className="text-lg text-gray-600 leading-relaxed max-w-md">
-                  We're here to help. Reach out to us via phone, email, or visit
-                  our office for a coffee and a chat.
-                </p>
-              </div>
-
-              {/* Contact Details - Redesigned as Cards */}
-              <div className="space-y-6">
-                {/* Address Card */}
-                <div className="group flex items-start gap-6 p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300">
-                  <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center flex-shrink-0 text-blue-600 shadow-inner group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
-                    <MapPin className="w-7 h-7" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">
-                      Our Office Address
-                    </h3>
-                    <p className="text-gray-600 leading-relaxed text-base whitespace-pre-line">
-                      {settings.contact_address}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Email Card */}
-                <div className="group flex items-start gap-6 p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300">
-                  <div className="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center flex-shrink-0 text-green-600 shadow-inner group-hover:bg-green-600 group-hover:text-white transition-colors duration-300">
-                    <Mail className="w-7 h-7" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">
-                      Email Us
-                    </h3>
-                    <a
-                      href={`mailto:${settings.contact_email}`}
-                      className="text-gray-600 hover:text-blue-600 font-medium text-base transition-colors block"
-                    >
-                      {settings.contact_email}
-                    </a>
-                  </div>
-                </div>
-
-                {/* Phone Card */}
-                <div className="group flex items-start gap-6 p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300">
-                  <div className="w-14 h-14 bg-purple-50 rounded-2xl flex items-center justify-center flex-shrink-0 text-purple-600 shadow-inner group-hover:bg-purple-600 group-hover:text-white transition-colors duration-300">
-                    <Phone className="w-7 h-7" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">
-                      Call Us
-                    </h3>
-                    <a
-                      href={`tel:${settings.contact_phone}`}
-                      className="text-gray-600 hover:text-blue-600 font-medium text-base transition-colors block"
-                    >
-                      {settings.contact_phone}
-                    </a>
-                  </div>
-                </div>
-              </div>
-
-              {/* Google Maps Embed - Enhanced Visuals */}
-              <div className="relative w-full h-[400px] rounded-3xl overflow-hidden shadow-2xl border-4 border-white ring-1 ring-gray-100">
-                <iframe
-                  src={settings.integration_google_maps_embed}
-                  width="100%"
-                  height="100%"
-                  style={{ border: 0 }}
-                  allowFullScreen={true}
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  className="w-full h-full object-cover"
-                ></iframe>
-              </div>
-            </div>
+            <ContactInfoCards settings={settings} />
 
             {/* Right Column: Contact Form */}
             <div className="bg-white rounded-3xl shadow-xl p-8 md:p-12 border border-gray-100 relative overflow-hidden lg:sticky lg:top-32">
@@ -338,198 +95,12 @@ const ContactUsPage = () => {
                     Send Us a Message
                   </h2>
                   <p className="text-gray-600 text-lg">
-                    Fill out the form below and we'll get back to you shortly.
+                    Fill out the form below and we&apos;ll get back to you
+                    shortly.
                   </p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    {/* Full Name */}
-                    <div className="space-y-2">
-                      <label className="block text-sm font-bold text-gray-800">
-                        Full Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        name="fullName"
-                        value={formData.fullName}
-                        onChange={handleInputChange}
-                        required
-                        disabled={isSubmitting}
-                        className={inputClassName}
-                        placeholder="Enter your full name"
-                      />
-                    </div>
-                    {/* Contact Number */}
-                    <div className="space-y-2">
-                      <label className="block text-sm font-bold text-gray-800">
-                        Contact Number <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="tel"
-                        name="contactNumber"
-                        value={formData.contactNumber}
-                        onChange={handleInputChange}
-                        required
-                        disabled={isSubmitting}
-                        className={inputClassName}
-                        placeholder="+60 12-345 6789"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    {/* Company */}
-                    <div className="space-y-2">
-                      <label className="block text-sm font-bold text-gray-800">
-                        Company <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        name="company"
-                        value={formData.company}
-                        onChange={handleInputChange}
-                        required
-                        disabled={isSubmitting}
-                        className={inputClassName}
-                        placeholder="Your company name"
-                      />
-                    </div>
-                    {/* Business Email */}
-                    <div className="space-y-2">
-                      <label className="block text-sm font-bold text-gray-800">
-                        Business Email <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        required
-                        disabled={isSubmitting}
-                        className={inputClassName}
-                        placeholder="your.email@company.com"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Company Size */}
-                  <div className="space-y-2">
-                    <label className="block text-sm font-bold text-gray-800">
-                      Company Size <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <select
-                        name="companySize"
-                        value={formData.companySize}
-                        onChange={handleInputChange}
-                        required
-                        disabled={isSubmitting}
-                        className={`${inputClassName} appearance-none cursor-pointer`}
-                      >
-                        <option value="" disabled className="text-gray-400">
-                          Select company size
-                        </option>
-                        <option value="1-50">1-50 employees</option>
-                        <option value="51-200">51-200 employees</option>
-                        <option value="201-500">201-500 employees</option>
-                        <option value="501-1000">501-1,000 employees</option>
-                        <option value="1000-1500">1,000-1,500 employees</option>
-                        <option value="1501-2000">1,501-2,000 employees</option>
-                        <option value="2001-3000">2,001-3,000 employees</option>
-                        <option value="3000+">3,000+ employees</option>
-                      </select>
-                      <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
-                        <svg
-                          className="w-4 h-4 text-gray-500"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Message */}
-                  <div className="space-y-2">
-                    <label className="block text-sm font-bold text-gray-800">
-                      Message
-                    </label>
-                    <textarea
-                      name="message"
-                      value={formData.message}
-                      onChange={handleInputChange}
-                      rows={5}
-                      disabled={isSubmitting}
-                      className={inputClassName}
-                      placeholder="Tell us about your HR needs..."
-                    />
-                  </div>
-
-                  {/* Cloudflare Turnstile */}
-                  <div className="flex justify-center py-2">
-                    <div
-                      ref={turnstileRef}
-                      className="cf-turnstile"
-                      data-sitekey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
-                      data-callback="onTurnstileSuccess"
-                      data-error-callback="onTurnstileError"
-                      data-expired-callback="onTurnstileExpired"
-                    ></div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isSubmitting || !captchaToken}
-                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 px-8 rounded-xl font-bold shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-indigo-700 hover:shadow-xl transform hover:scale-[1.01] active:scale-[0.99] transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none text-lg"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <svg
-                          className="animate-spin h-5 w-5"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          ></circle>
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                          ></path>
-                        </svg>
-                        Sending...
-                      </>
-                    ) : (
-                      <>
-                        <Send className="w-5 h-5" />
-                        Send Message
-                      </>
-                    )}
-                  </button>
-
-                  <p className="text-xs text-gray-500 text-center mt-6">
-                    By submitting, you agree to our{" "}
-                    <a href="#" className="text-blue-600 hover:underline">
-                      Privacy Policy
-                    </a>
-                    .
-                  </p>
-                </form>
+                <ContactForm onStatus={setSubmitStatus} />
               </div>
             </div>
           </div>
@@ -537,23 +108,6 @@ const ContactUsPage = () => {
       </main>
 
       <Footer />
-
-      {/* Turnstile Callbacks */}
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `
-            window.onTurnstileSuccess = function(token) {
-              window.dispatchEvent(new CustomEvent('turnstile-success', { detail: token }));
-            };
-            window.onTurnstileError = function() {
-              window.dispatchEvent(new CustomEvent('turnstile-error'));
-            };
-            window.onTurnstileExpired = function() {
-              window.dispatchEvent(new CustomEvent('turnstile-expired'));
-            };
-          `,
-        }}
-      />
     </div>
   );
 };

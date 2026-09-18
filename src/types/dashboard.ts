@@ -35,8 +35,8 @@ export type ContactQuickView = {
   id: string;
   full_name: string;
   company: string;
-  status: string;
-  created_at: string;
+  status: string | null;
+  created_at: string | null;
 };
 
 export type DashboardData = {

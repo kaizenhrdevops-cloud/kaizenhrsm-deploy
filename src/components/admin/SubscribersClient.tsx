@@ -43,7 +43,7 @@ const StatusBadge = ({
   const baseClasses =
     "inline-block px-2.5 py-1 text-xs font-medium rounded-full";
   let colorClasses = "";
-  let text = status.charAt(0).toUpperCase() + status.slice(1);
+  const text = status.charAt(0).toUpperCase() + status.slice(1);
 
   switch (status) {
     case "subscribed":

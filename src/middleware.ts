@@ -1,41 +1,24 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { createClient } from "@supabase/supabase-js";
 
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next();
   const { pathname } = req.nextUrl;
 
-  // 1. Maintenance Mode Check (Uses Service Role to bypass RLS)
-  if (
-    !pathname.startsWith("/admin") &&
-    !pathname.startsWith("/login") &&
-    !pathname.startsWith("/_next") &&
-    !pathname.startsWith("/static") &&
-    !pathname.includes(".") // Exclude images/css/etc
-  ) {
-    try {
-      const adminClient = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
-        {
-          auth: { persistSession: false },
-        }
-      );
-
-      const { data: setting } = await adminClient
-        .from("system_settings")
-        .select("value")
-        .eq("key", "enable_maintenance_mode")
-        .single();
-
-      // Clean the value
-      const isMaintenance =
-        setting?.value === "true" || setting?.value === true || setting?.value === "\"true\"";
-
-      if (isMaintenance) {
-        return new NextResponse(
-          `<!DOCTYPE html>
+  // NOTE: Maintenance mode is handled in src/app/(public)/layout.tsx via
+  // cached getPublicSettings() — NOT here. This keeps middleware free of
+  // per-request DB queries and keeps SUPABASE_SERVICE_ROLE_KEY out of the
+  // edge runtime. To force maintenance without a DB read (e.g. during a
+  // DB outage), set MAINTENANCE_MODE=true in the environment.
+  if (process.env.MAINTENANCE_MODE === "true") {
+    if (
+      !pathname.startsWith("/admin") &&
+      !pathname.startsWith("/login") &&
+      !pathname.startsWith("/_next") &&
+      !pathname.startsWith("/static") &&
+      !pathname.includes(".")
+    ) {
+      return new NextResponse(
+        `<!DOCTYPE>
           <html>
             <head>
               <title>Maintenance</title>
@@ -51,14 +34,11 @@ export async function middleware(req: NextRequest) {
               <p>The system is currently undergoing scheduled maintenance.</p>
             </body>
           </html>`,
-          {
-            status: 503,
-            headers: { "content-type": "text/html" },
-          }
-        );
-      }
-    } catch (error) {
-      console.error("Maintenance check failed:", error);
+        {
+          status: 503,
+          headers: { "content-type": "text/html" },
+        }
+      );
     }
   }
 
@@ -77,7 +57,7 @@ export async function middleware(req: NextRequest) {
         },
         setAll(cookiesToSet) {
           // Set cookies on the request
-          cookiesToSet.forEach(({ name, value, options }) =>
+          cookiesToSet.forEach(({ name, value }) =>
             req.cookies.set(name, value)
           );
           
@@ -97,7 +77,6 @@ export async function middleware(req: NextRequest) {
   // Refresh session
   const {
     data: { user },
-    error: authError,
   } = await supabase.auth.getUser();
 
   // 3. Admin Route Protection

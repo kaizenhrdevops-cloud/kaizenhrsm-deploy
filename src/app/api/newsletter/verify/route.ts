@@ -1,13 +1,10 @@
 // src/app/api/newsletter/verify/route.ts
 
 import { type NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getServiceClient } from "@/lib/supabase-admin";
 
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Shared service-role client (see src/lib/supabase-admin.ts)
+const supabase = getServiceClient();
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);

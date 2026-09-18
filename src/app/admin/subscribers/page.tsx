@@ -1,5 +1,5 @@
 import { createClient as createSupabaseServerClient } from "@/lib/server";
-import { createClient } from "@supabase/supabase-js";
+import { getServiceClient } from "@/lib/supabase-admin";
 import { redirect } from "next/navigation";
 import SubscribersClient from "@/components/admin/SubscribersClient";
 
@@ -38,12 +38,8 @@ export default async function SubscribersPage() {
     );
   }
 
-  // 3. THE FIX: Create a special ADMIN client with the master key to fetch data
-  // This client will bypass the RLS policies we just created.
-  const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  // 3. Shared ADMIN client (bypasses RLS) — see src/lib/supabase-admin.ts
+  const supabaseAdmin = getServiceClient();
 
   // 4. Fetch the data using the ADMIN client
   const { data: subscribers, error } = await supabaseAdmin

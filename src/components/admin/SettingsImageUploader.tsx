@@ -1,15 +1,16 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { createBrowserClient } from "@supabase/ssr";
+import toast from "react-hot-toast";
 import { Upload, X, Loader2, Image as ImageIcon } from "lucide-react";
-import { compressImage } from "@/app/admin/editor/utils/image-compressor"; // Using your existing compressor
+import { uploadCompressedImage } from "@/lib/storage-upload";
 
 interface SettingsImageUploaderProps {
   label: string;
   value: string;
   onChange: (url: string) => void;
   bucketName?: string;
+  hint?: string;
 }
 
 export default function SettingsImageUploader({
@@ -17,15 +18,10 @@ export default function SettingsImageUploader({
   value,
   onChange,
   bucketName = "post-images", // Defaulting to your existing bucket
+  hint,
 }: SettingsImageUploaderProps) {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Client-side Supabase for storage uploads
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -33,37 +29,14 @@ export default function SettingsImageUploader({
 
     setIsUploading(true);
     try {
-      // 1. Compress image (Optimizes JPG/PNG/HEIF to WebP, preserves GIFs)
-      const processedFile = await compressImage(file, {
-        maxWidth: 1200,
-        quality: 0.8,
+      // Compressed upload (JPG/PNG/HEIF → WebP ~100KB, GIFs preserved)
+      const { publicUrl } = await uploadCompressedImage(file, {
+        bucket: bucketName,
       });
-
-      // 2. Prepare file path
-      const fileExt = processedFile.type === "image/gif" ? "gif" : "webp";
-      const fileName = `settings-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const filePath = `public/settings/${fileName}`;
-
-      // 3. Upload to Supabase
-      const { error } = await supabase.storage
-        .from(bucketName)
-        .upload(filePath, processedFile, {
-          cacheControl: "3600",
-          upsert: false,
-        });
-
-      if (error) throw error;
-
-      // 4. Get Public URL
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from(bucketName).getPublicUrl(filePath);
-
-      // 5. Update parent state
       onChange(publicUrl);
     } catch (error) {
       console.error("Upload failed:", error);
-      alert("Failed to upload image. Please try again.");
+      toast.error("Failed to upload image. Please try again.");
     } finally {
       setIsUploading(false);
       // Reset input so same file can be selected again if needed
@@ -137,6 +110,9 @@ export default function SettingsImageUploader({
           Upload
         </button>
       </div>
+      {hint ? (
+        <p className="text-xs text-gray-500 dark:text-gray-400">{hint}</p>
+      ) : null}
       <p className="text-xs text-gray-500 dark:text-gray-400">
         Supported: JPG, PNG, GIF, HEIF. Max size: 5MB.
       </p>
