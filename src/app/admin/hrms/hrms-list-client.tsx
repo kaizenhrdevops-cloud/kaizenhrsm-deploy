@@ -207,7 +207,7 @@ function SortableModuleRow({
         <div className="flex items-center gap-1">
           <StatusBadge status={module.status} />
           <span className="text-xs text-slate-500 ml-1">
-            {module.feature_count} {module.feature_count === 1 ? "sec" : "secs"}
+            {module.feature_count} {module.feature_count === 1 ? "section" : "sections"}
           </span>
         </div>
         <div className="flex items-center gap-1">
