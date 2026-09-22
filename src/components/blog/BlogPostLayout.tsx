@@ -39,13 +39,17 @@ type TOCItem = {
 export default function BlogPostLayout({
   slug,
   category,
+  initialPost = null,
+  initialBlocks = [],
 }: {
   slug: string;
   category: "blog" | "development";
+  initialPost?: Post | null;
+  initialBlocks?: Block[];
 }) {
-  const [post, setPost] = useState<Post | null>(null);
-  const [blocks, setBlocks] = useState<Block[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [post, setPost] = useState<Post | null>(initialPost);
+  const [blocks, setBlocks] = useState<Block[]>(initialBlocks);
+  const [loading, setLoading] = useState(initialPost ? false : true);
   const [toc, setToc] = useState<TOCItem[]>([]);
   const [activeSection, setActiveSection] = useState<string>("");
 
@@ -58,9 +62,11 @@ export default function BlogPostLayout({
   const supabase = getBrowserClient();
 
   useEffect(() => {
-    fetchPost();
+    if (!initialPost) {
+      fetchPost();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slug, category]);
+  }, [slug, category, initialPost]);
 
   useEffect(() => {
     if (blocks.length > 0) {
@@ -74,8 +80,7 @@ export default function BlogPostLayout({
       const { data: postData, error: postError } = await supabase
         .from("posts")
         .select(
-          `id, title, slug, excerpt, featured_image, published_at, updated_at, author_id,
-           author:profiles!posts_author_id_fkey(full_name, email)`
+          `id, title, slug, excerpt, featured_image, published_at, updated_at, author_id`
         )
         .eq("slug", slug)
         .eq("category", category)
@@ -95,12 +100,7 @@ export default function BlogPostLayout({
 
         if (blocksError) throw blocksError;
 
-        // Supabase types the to-one author join as an array; normalize it.
-        const rawAuthor = (postData as any).author;
-        setPost({
-          ...(postData as any),
-          author: Array.isArray(rawAuthor) ? rawAuthor[0] : rawAuthor,
-        });
+        setPost(postData as any);
         setBlocks(blocksData || []);
       }
     } catch (error) {
