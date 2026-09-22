@@ -47,7 +47,7 @@ export default function DashboardStatsGrid({
   stats: DashboardStat[];
 }) {
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+    <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
       {stats.map((stat, index) => {
         const Icon = iconMap[stat.iconName] || Activity;
         const styles = colorStyles[stat.color] || colorStyles.gray;
@@ -83,7 +83,7 @@ export default function DashboardStatsGrid({
             </div>
 
             <div>
-              <h3 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+              <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
                 {stat.value}
               </h3>
               <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">

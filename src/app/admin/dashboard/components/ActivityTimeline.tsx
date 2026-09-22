@@ -86,7 +86,7 @@ export default function ActivityTimeline({ items }: { items: ActivityItem[] }) {
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col h-full">
-      <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+      <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
         <h3 className="font-bold text-lg text-slate-900 dark:text-white">
           Recent Activity
         </h3>
@@ -98,8 +98,8 @@ export default function ActivityTimeline({ items }: { items: ActivityItem[] }) {
         </Link>
       </div>
 
-      <div className="p-6 flex-1">
-        <div className="relative border-l border-slate-200 dark:border-slate-700 ml-3 space-y-8">
+      <div className="p-4 sm:p-6 flex-1">
+        <div className="relative border-l border-slate-200 dark:border-slate-700 ml-3 space-y-6 sm:space-y-8">
           {paginatedItems.map((item) => (
             <div key={item.id} className="relative pl-8">
               <div className="absolute -left-4 top-0 bg-white dark:bg-slate-800 p-1">

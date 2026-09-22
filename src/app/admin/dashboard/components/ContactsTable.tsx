@@ -68,52 +68,88 @@ export default function ContactsTable({
             No recent inquiries found.
           </div>
         ) : (
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 sticky top-0">
-              <tr>
-                <th className="px-6 py-3 font-medium">Name</th>
-                <th className="px-6 py-3 font-medium">Date</th>
-                <th className="px-6 py-3 font-medium">Status</th>
-                <th className="px-6 py-3 font-medium text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+          <>
+            {/* Mobile Card Layout */}
+            <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-700">
               {paginatedContacts.map((contact) => (
-                <tr
-                  key={contact.id}
-                  className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors"
-                >
-                  <td className="px-6 py-4">
-                    <div className="font-medium text-slate-900 dark:text-white">
+                <div key={contact.id} className="p-4 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-slate-900 dark:text-white truncate">
                       {contact.full_name}
                     </div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                       {contact.company}
                     </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-500 dark:text-slate-400">
-                    {formatDate(contact.created_at)}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize ${getStatusColor(contact.status)}`}
-                    >
-                      {contact.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <Link
-                      href={`/admin/contacts`}
-                      className="inline-flex items-center justify-center p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all"
-                      title="View Details"
-                    >
-                      <Eye size={18} />
-                    </Link>
-                  </td>
-                </tr>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusColor(contact.status)}`}
+                      >
+                        {contact.status}
+                      </span>
+                      <span className="text-xs text-slate-400">
+                        {formatDate(contact.created_at)}
+                      </span>
+                    </div>
+                  </div>
+                  <Link
+                    href="/admin/contacts"
+                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all shrink-0"
+                    title="View Details"
+                  >
+                    <Eye size={18} />
+                  </Link>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+
+            {/* Desktop Table Layout */}
+            <table className="w-full text-left text-sm hidden md:table">
+              <thead className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 sticky top-0">
+                <tr>
+                  <th className="px-6 py-3 font-medium">Name</th>
+                  <th className="px-6 py-3 font-medium">Date</th>
+                  <th className="px-6 py-3 font-medium">Status</th>
+                  <th className="px-6 py-3 font-medium text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                {paginatedContacts.map((contact) => (
+                  <tr
+                    key={contact.id}
+                    className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors"
+                  >
+                    <td className="px-6 py-4">
+                      <div className="font-medium text-slate-900 dark:text-white">
+                        {contact.full_name}
+                      </div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400">
+                        {contact.company}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-slate-500 dark:text-slate-400">
+                      {formatDate(contact.created_at)}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize ${getStatusColor(contact.status)}`}
+                      >
+                        {contact.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <Link
+                        href="/admin/contacts"
+                        className="inline-flex items-center justify-center p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all"
+                        title="View Details"
+                      >
+                        <Eye size={18} />
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
         )}
       </div>
 

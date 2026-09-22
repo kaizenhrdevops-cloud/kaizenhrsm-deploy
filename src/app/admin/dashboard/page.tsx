@@ -289,13 +289,13 @@ export default async function DashboardPage() {
   activities = activities.slice(0, 50);
 
   return (
-    <Container className="py-8 space-y-8 max-w-7xl mx-auto">
+    <Container className="py-4 sm:py-8 space-y-4 sm:space-y-8 max-w-7xl mx-auto px-4 sm:px-6">
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
             Dashboard
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm sm:text-base">
             Overview for {profile.full_name?.split(" ")[0]}
           </p>
         </div>
@@ -308,14 +308,14 @@ export default async function DashboardPage() {
         <SubscriberChart data={finalChartData} />
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-3">
+      <div className="grid gap-4 sm:gap-8 lg:grid-cols-3">
         {/* Left Column: Activity Timeline */}
         <div className="lg:col-span-1">
           <ActivityTimeline items={activities} />
         </div>
 
         {/* Right Column: Contacts Table */}
-        <div className="lg:col-span-2 space-y-8">
+        <div className="lg:col-span-2 space-y-4 sm:space-y-8">
           {/* We pass the larger list of contacts now so table pagination works */}
           <ContactsTable contacts={contacts} />
         </div>
