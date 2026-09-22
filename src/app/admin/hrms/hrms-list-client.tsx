@@ -93,19 +93,19 @@ function SortableModuleRow({
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center justify-between p-3.5 bg-white dark:bg-slate-800 rounded-xl border transition-all ${
+      className={`p-3 sm:p-3.5 bg-white dark:bg-slate-800 rounded-xl border transition-all ${
         isDragging
           ? "border-blue-500 shadow-xl opacity-90 scale-[1.01] ring-2 ring-blue-500/20"
           : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 shadow-sm"
       }`}
     >
-      {/* Left: Drag Handle, Rank Badge, Title, Path */}
-      <div className="flex items-center gap-3 min-w-0 flex-1">
+      {/* Top row: Drag handle + Rank + Title (always visible) */}
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
         <button
           {...dragProps}
           type="button"
           aria-label={`Reorder ${module.name}`}
-          className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded cursor-grab active:cursor-grabbing hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors"
+          className="p-1 sm:p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded cursor-grab active:cursor-grabbing hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors shrink-0"
         >
           <GripVertical size={18} />
         </button>
@@ -116,7 +116,7 @@ function SortableModuleRow({
 
         <div
           onClick={() => onEdit(module.slug)}
-          className="min-w-0 cursor-pointer group"
+          className="min-w-0 flex-1 cursor-pointer group"
         >
           <div className="font-semibold text-sm text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex items-center gap-1.5">
             <span className="truncate">{module.name}</span>
@@ -125,94 +125,120 @@ function SortableModuleRow({
             /hrms/{module.slug}
           </div>
         </div>
+
+        {/* Center: Status & Sections count (hidden on mobile) */}
+        <div className="hidden sm:flex items-center gap-4 px-4 shrink-0">
+          <StatusBadge status={module.status} />
+          <span className="text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">
+            {module.feature_count} {module.feature_count === 1 ? "section" : "sections"}
+          </span>
+        </div>
+
+        {/* Desktop: Full controls inline */}
+        <div className="hidden sm:flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => onMoveToExtremity(index, "first")}
+            disabled={index === 0 || isPending}
+            title="Move to first position (top)"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-700 disabled:opacity-25 disabled:hover:bg-transparent disabled:hover:text-slate-500 transition-colors"
+          >
+            <ChevronsUp size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={() => onMove(index, index - 1)}
+            disabled={index === 0 || isPending}
+            title="Move up one position"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-700 disabled:opacity-25 disabled:hover:bg-transparent disabled:hover:text-slate-500 transition-colors"
+          >
+            <ArrowUp size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={() => onMove(index, index + 1)}
+            disabled={index === total - 1 || isPending}
+            title="Move down one position"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-700 disabled:opacity-25 disabled:hover:bg-transparent disabled:hover:text-slate-500 transition-colors"
+          >
+            <ArrowDown size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={() => onMoveToExtremity(index, "last")}
+            disabled={index === total - 1 || isPending}
+            title="Move to last position (bottom)"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-700 disabled:opacity-25 disabled:hover:bg-transparent disabled:hover:text-slate-500 transition-colors"
+          >
+            <ChevronsDown size={16} />
+          </button>
+          <select
+            value={index + 1}
+            disabled={isPending}
+            onChange={(e) => onMove(index, Number(e.target.value) - 1)}
+            aria-label={`Position of ${module.name}`}
+            className="ml-1 text-xs py-1 px-1.5 border border-slate-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          >
+            {Array.from({ length: total }).map((_, pos) => (
+              <option key={pos + 1} value={pos + 1}>
+                #{pos + 1}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => onEdit(module.slug)}
+            className="ml-2 px-2.5 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition-colors"
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete(module)}
+            className="px-2 py-1 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
+          >
+            Delete
+          </button>
+        </div>
       </div>
 
-      {/* Center: Status & Sections count */}
-      <div className="hidden sm:flex items-center gap-4 px-4">
-        <StatusBadge status={module.status} />
-        <span className="text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">
-          {module.feature_count} {module.feature_count === 1 ? "section" : "sections"}
-        </span>
-      </div>
-
-      {/* Right: Quick Move Controls & Actions */}
-      <div className="flex items-center gap-1 shrink-0">
-        {/* Move to Top */}
-        <button
-          type="button"
-          onClick={() => onMoveToExtremity(index, "first")}
-          disabled={index === 0 || isPending}
-          title="Move to first position (top)"
-          className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-700 disabled:opacity-25 disabled:hover:bg-transparent disabled:hover:text-slate-500 transition-colors"
-        >
-          <ChevronsUp size={16} />
-        </button>
-
-        {/* Move Up 1 */}
-        <button
-          type="button"
-          onClick={() => onMove(index, index - 1)}
-          disabled={index === 0 || isPending}
-          title="Move up one position"
-          className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-700 disabled:opacity-25 disabled:hover:bg-transparent disabled:hover:text-slate-500 transition-colors"
-        >
-          <ArrowUp size={16} />
-        </button>
-
-        {/* Move Down 1 */}
-        <button
-          type="button"
-          onClick={() => onMove(index, index + 1)}
-          disabled={index === total - 1 || isPending}
-          title="Move down one position"
-          className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-700 disabled:opacity-25 disabled:hover:bg-transparent disabled:hover:text-slate-500 transition-colors"
-        >
-          <ArrowDown size={16} />
-        </button>
-
-        {/* Move to Bottom */}
-        <button
-          type="button"
-          onClick={() => onMoveToExtremity(index, "last")}
-          disabled={index === total - 1 || isPending}
-          title="Move to last position (bottom)"
-          className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-700 disabled:opacity-25 disabled:hover:bg-transparent disabled:hover:text-slate-500 transition-colors"
-        >
-          <ChevronsDown size={16} />
-        </button>
-
-        {/* Quick Position Select */}
-        <select
-          value={index + 1}
-          disabled={isPending}
-          onChange={(e) => onMove(index, Number(e.target.value) - 1)}
-          aria-label={`Position of ${module.name}`}
-          className="ml-1 text-xs py-1 px-1.5 border border-slate-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
-        >
-          {Array.from({ length: total }).map((_, pos) => (
-            <option key={pos + 1} value={pos + 1}>
-              #{pos + 1}
-            </option>
-          ))}
-        </select>
-
-        {/* Edit button */}
-        <button
-          type="button"
-          onClick={() => onEdit(module.slug)}
-          className="ml-2 px-2.5 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition-colors"
-        >
-          Edit
-        </button>
-
-        {/* Delete button */}
-        <button
-          type="button"
-          onClick={() => onDelete(module)}
-          className="px-2 py-1 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
-        >
-          Delete
-        </button>
+      {/* Mobile-only: compact controls row below the title */}
+      <div className="flex sm:hidden items-center justify-between mt-2 pt-2 border-t border-slate-100 dark:border-slate-700/50">
+        <div className="flex items-center gap-1">
+          <StatusBadge status={module.status} />
+          <span className="text-xs text-slate-500 ml-1">
+            {module.feature_count} {module.feature_count === 1 ? "sec" : "secs"}
+          </span>
+        </div>
+        <div className="flex items-center gap-1">
+          <select
+            value={index + 1}
+            disabled={isPending}
+            onChange={(e) => onMove(index, Number(e.target.value) - 1)}
+            aria-label={`Position of ${module.name}`}
+            className="text-xs py-1 px-1.5 border border-slate-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          >
+            {Array.from({ length: total }).map((_, pos) => (
+              <option key={pos + 1} value={pos + 1}>
+                #{pos + 1}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => onEdit(module.slug)}
+            className="px-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition-colors"
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete(module)}
+            className="px-2 py-1 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
+          >
+            Delete
+          </button>
+        </div>
       </div>
     </div>
   );
