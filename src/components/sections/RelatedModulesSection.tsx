@@ -1,5 +1,6 @@
 // src/components/sections/RelatedModulesSection.tsx
 import React from "react";
+import Link from "next/link";
 import Image from "next/image";
 import Container from "@/components/layout/Container";
 
@@ -29,10 +30,11 @@ const RelatedModulesSection = ({
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {modules.map((module, index) => (
-            <div
+            <Link
               key={index}
-              // 1. Main Card Effects: "hover:-translate-y-2" for lift, "hover:shadow-xl" for depth
-              className="group bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-200 flex flex-col hover:-translate-y-2"
+              href={module.link}
+              aria-label={`Learn more about ${module.name}`}
+              className="group bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-200 flex flex-col hover:-translate-y-2 active:scale-[0.98] active:shadow-md cursor-pointer"
             >
               {module.imageSrc ? (
                 <div className="w-full h-48 relative bg-gray-100 overflow-hidden">
@@ -40,9 +42,6 @@ const RelatedModulesSection = ({
                     src={module.imageSrc}
                     alt={`${module.name} module`}
                     fill
-                    // 2. Image Scaling Logic:
-                    // - "scale-120 lg:scale-100": Forces image to fill space on different screens (your fix)
-                    // - "lg:group-hover:scale-110": Zooms image slightly on desktop hover (my addition)
                     className="object-cover scale-120 lg:scale-100 transition-transform duration-500 ease-in-out lg:group-hover:scale-110"
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                     priority={index < 4}
@@ -58,7 +57,6 @@ const RelatedModulesSection = ({
               )}
 
               <div className="p-6 flex flex-col flex-1">
-                {/* 3. Title Color Change: Title turns blue on hover */}
                 <h3 className="text-lg font-semibold text-gray-900 mb-3 leading-tight group-hover:text-blue-600 transition-colors">
                   {module.name}
                 </h3>
@@ -66,11 +64,7 @@ const RelatedModulesSection = ({
                   {module.description}
                 </p>
 
-                {/* 4. Read More Link: Removed underline, kept simple arrow animation */}
-                <a
-                  href={module.link}
-                  className="inline-flex items-center text-blue-600 hover:text-blue-800 font-semibold text-sm group mt-auto"
-                >
+                <div className="inline-flex items-center text-blue-600 group-hover:text-blue-800 font-semibold text-sm mt-auto">
                   Read More
                   <svg
                     className="w-4 h-4 ml-1 transform transition-transform duration-300 group-hover:translate-x-1"
@@ -85,9 +79,9 @@ const RelatedModulesSection = ({
                       d="M9 5l7 7-7 7"
                     />
                   </svg>
-                </a>
+                </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </Container>
