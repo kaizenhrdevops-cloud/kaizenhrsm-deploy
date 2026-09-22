@@ -149,9 +149,9 @@ const Footer = () => {
         <div className="border-t border-white/20"></div>
 
         {/* BOTTOM SECTION: ACTIONS */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-8 pt-12 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-12 items-start">
           {/* Newsletter */}
-          <div>
+          <div className="w-full">
             <h3 className="text-lg font-semibold mb-4">
               Subscribe to Kaizen&apos;s Newsletter
             </h3>
@@ -159,9 +159,9 @@ const Footer = () => {
           </div>
 
           {/* Social Media - Dynamic List */}
-          <div className="flex flex-col justify-end md:justify-start text-center">
+          <div className="flex flex-col items-start md:items-center text-left md:text-center">
             <h3 className="text-lg font-semibold mb-4">Follow us</h3>
-            <div className="flex space-x-4 justify-center flex-wrap gap-y-4">
+            <div className="flex space-x-4 justify-start md:justify-center flex-wrap gap-y-4">
               {socialLinks.map(
                 (link: { platform: string; url: string }, index: number) => {
                   const Icon = getSocialIcon(link.platform);
@@ -184,7 +184,7 @@ const Footer = () => {
           </div>
 
           {/* Mobile App Downloads */}
-          <div className="col-span-2 md:col-span-1">
+          <div className="w-full">
             <h3 className="text-lg font-semibold mb-4">
               Download the Mobile App
             </h3>
