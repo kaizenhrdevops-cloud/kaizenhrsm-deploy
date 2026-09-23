@@ -3,7 +3,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, LayoutGrid } from "lucide-react";
 import { useHrmsSubmenus } from "../layout/navbar/useHrmsSubmenus";
 
 const DetailedFeatures = () => {
@@ -12,7 +12,7 @@ const DetailedFeatures = () => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-3.5">
       {modules.map((module, index) => {
-        const IconComponent = module.icon;
+        const IconComponent = module.icon || LayoutGrid;
         return (
           <Link
             href={module.path}
@@ -22,11 +22,7 @@ const DetailedFeatures = () => {
           >
             <div className="flex items-center gap-3.5 min-w-0">
               <div className="w-10 h-10 rounded-lg bg-teal-50 text-[#008080] border border-teal-100 flex items-center justify-center shrink-0 group-hover:bg-[#008080] group-hover:text-white group-hover:border-[#008080] transition-colors duration-200 shadow-sm">
-                {IconComponent ? (
-                  <IconComponent size={20} strokeWidth={1.8} />
-                ) : (
-                  <span className="text-sm font-bold">HR</span>
-                )}
+                <IconComponent size={20} strokeWidth={1.8} />
               </div>
               <h3 className="text-[14px] sm:text-[15px] font-semibold text-slate-800 group-hover:text-teal-900 transition-colors leading-snug line-clamp-2">
                 {module.name}
