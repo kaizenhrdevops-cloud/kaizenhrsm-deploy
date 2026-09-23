@@ -5,27 +5,22 @@ import DetailedFeatures from "./DetailedFeatures";
 
 const HROffering = () => {
   return (
-    <section className="relative py-20 lg:py-28 bg-[#004747] text-white overflow-hidden">
-      {/* Architectural subtle grid pattern */}
+    <section className="relative py-24 lg:py-32 bg-gradient-to-b from-[#005c5c] via-[#004a4a] to-[#003d3d] text-white overflow-hidden">
+      {/* Single soft top-edge glow for depth — not centered blobs */}
       <div
         aria-hidden="true"
-        className="absolute inset-0 opacity-[0.14] bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] bg-[size:3.5rem_3.5rem] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_40%,#000_60%,transparent_100%)] pointer-events-none"
-      />
-
-      {/* Atmospheric vignette */}
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 bg-gradient-to-b from-[#003b3b] via-transparent to-[#003636] pointer-events-none"
+        className="absolute -top-24 left-0 right-0 h-48 bg-gradient-to-b from-white/[0.04] to-transparent pointer-events-none"
       />
 
       <Container className="relative z-10">
-        <div className="text-center mb-12 lg:mb-16 max-w-3xl mx-auto">
-          {/* Heading */}
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white mb-4">
-            Our Comprehensive HR Offering
+        {/* Header block — matches the site's light/bold weight convention */}
+        <div className="text-center mb-14 lg:mb-20">
+          <h2 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-light tracking-tight text-white leading-tight mb-3">
+            Our Comprehensive{" "}
+            <span className="font-semibold">HR Offering</span>
           </h2>
-
-          <p className="text-base sm:text-lg text-teal-100/90 leading-relaxed max-w-2xl mx-auto">
+          <div className="w-16 h-[3px] bg-yellow-400 mx-auto mb-5 rounded-full" />
+          <p className="text-base sm:text-lg text-white/70 max-w-xl mx-auto leading-relaxed">
             Complete HR modules designed to streamline your workforce management
           </p>
         </div>

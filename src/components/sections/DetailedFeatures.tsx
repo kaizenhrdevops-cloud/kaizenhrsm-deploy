@@ -3,14 +3,14 @@
 
 import React from "react";
 import Link from "next/link";
-import { ArrowUpRight, LayoutGrid } from "lucide-react";
+import { LayoutGrid } from "lucide-react";
 import { useHrmsSubmenus } from "../layout/navbar/useHrmsSubmenus";
 
 const DetailedFeatures = () => {
   const modules = useHrmsSubmenus();
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-3.5">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-3">
       {modules.map((module, index) => {
         const IconComponent = module.icon || LayoutGrid;
         return (
@@ -18,19 +18,14 @@ const DetailedFeatures = () => {
             href={module.path}
             key={module.path || index}
             aria-label={`Explore ${module.name}`}
-            className="group relative flex items-center justify-between gap-3 p-3.5 sm:p-4 rounded-xl bg-white hover:bg-slate-50 text-slate-900 border border-white/80 hover:border-teal-300/80 shadow-[0_2px_8px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)] transition-all duration-200 hover:-translate-y-0.5"
+            className="group flex items-center gap-3 px-4 py-3.5 rounded-lg bg-white/[0.07] backdrop-blur-[2px] border border-white/[0.09] hover:bg-white/[0.14] hover:border-white/[0.2] transition-all duration-200"
           >
-            <div className="flex items-center gap-3.5 min-w-0">
-              <div className="w-10 h-10 rounded-lg bg-teal-50 text-[#008080] border border-teal-100 flex items-center justify-center shrink-0 group-hover:bg-[#008080] group-hover:text-white group-hover:border-[#008080] transition-colors duration-200 shadow-sm">
-                <IconComponent size={20} strokeWidth={1.8} />
-              </div>
-              <h3 className="text-[14px] sm:text-[15px] font-semibold text-slate-800 group-hover:text-teal-900 transition-colors leading-snug line-clamp-2">
-                {module.name}
-              </h3>
+            <div className="w-9 h-9 rounded-md bg-white/[0.12] flex items-center justify-center shrink-0 text-teal-200 group-hover:text-yellow-300 transition-colors duration-200">
+              <IconComponent size={18} strokeWidth={1.7} />
             </div>
-            <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-slate-300 group-hover:text-teal-700 group-hover:bg-teal-50 transition-all duration-200">
-              <ArrowUpRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-            </div>
+            <span className="text-[13px] sm:text-sm font-medium text-white/85 group-hover:text-white leading-snug transition-colors duration-200">
+              {module.name}
+            </span>
           </Link>
         );
       })}
