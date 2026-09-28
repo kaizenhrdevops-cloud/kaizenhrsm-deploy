@@ -340,8 +340,11 @@ function PostListingContent({
                   className="group relative block bg-white border border-gray-200/80 rounded-2xl overflow-hidden hover:border-gray-300 hover:shadow-xl transition-all duration-300 cursor-pointer"
                 >
                   <div className="grid md:grid-cols-12 gap-0 md:items-stretch">
-                    {/* Featured Image */}
-                    <div className="md:col-span-7 relative aspect-[16/10] md:aspect-auto md:min-h-[380px] bg-gray-50 overflow-hidden">
+                    {/* Featured Image — fixed 16/10 on all breakpoints so any
+                        uploaded ratio (portrait, square, landscape) crops to
+                        the same frame via object-cover instead of stretching
+                        the card. */}
+                    <div className="md:col-span-7 relative aspect-[16/10] bg-gray-50 overflow-hidden">
                       {featuredPost.featured_image ? (
                         <img
                           src={featuredPost.featured_image}
