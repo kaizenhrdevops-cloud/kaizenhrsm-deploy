@@ -5,13 +5,21 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { getServiceClient } from "@/lib/supabase-admin";
+import { getPublicSettings } from "@/lib/public-settings";
+import { validatePasswordStrength } from "@/lib/password";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { Resend } from "resend";
+import { render } from "@react-email/render";
+import PasswordResetEmail from "@/components/emails/PasswordResetEmail";
 
 // Helper function to create admin supabase client
 async function createAdminClient() {
   return getServiceClient();
 }
 
-// Helper function to check if current user is super_admin
+// Helper function to check if current user is an ACTIVE super_admin.
+// Both role and status are enforced: a suspended super_admin keeps no
+// server-action power (mirrors src/lib/api-auth.ts).
 async function checkSuperAdminAccess() {
   const cookieStore = await cookies();
   const supabase = createServerClient(
@@ -34,19 +42,40 @@ async function checkSuperAdminAccess() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, status")
     .eq("id", user.id)
     .single();
 
-  if (profile?.role !== "super_admin") {
+  if (profile?.role !== "super_admin" || profile?.status !== "active") {
     return {
       authorized: false,
-      message: "Access denied. Super admin role required.",
+      message: "Access denied. Active super admin role required.",
       userId: user.id,
     };
   }
 
   return { authorized: true, userId: user.id };
+}
+
+/**
+ * Server-side user listing (service role). The get_all_users_with_profiles
+ * RPC no longer allows `authenticated` callers, so the client page must go
+ * through here instead of rpc() from the browser.
+ */
+export async function listUsers() {
+  const authCheck = await checkSuperAdminAccess();
+  if (!authCheck.authorized) {
+    return { success: false, message: authCheck.message, users: [] };
+  }
+
+  const supabase = await createAdminClient();
+  const { data, error } = await supabase.rpc("get_all_users_with_profiles");
+
+  if (error) {
+    console.error("Error listing users:", error.message);
+    return { success: false, message: "Could not load users.", users: [] };
+  }
+  return { success: true, users: data || [] };
 }
 
 // Removed dynamic getBanDuration. Using static 100 years now.
@@ -60,12 +89,29 @@ export async function createUser(formData: FormData) {
   }
 
   const supabase = await createAdminClient();
-  
-  const fullName = formData.get("fullName") as string;
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
+
+  const fullName = ((formData.get("fullName") as string) || "").trim();
+  const email = ((formData.get("email") as string) || "").trim().toLowerCase();
+  const password = (formData.get("password") as string) || "";
   const role = formData.get("role") as string;
   const status = formData.get("status") as string;
+
+  if (!fullName) {
+    return { success: false, message: "Full name is required." };
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { success: false, message: "A valid email address is required." };
+  }
+  if (role !== "admin" && role !== "super_admin") {
+    return { success: false, message: "Invalid role." };
+  }
+  if (status !== "active" && status !== "inactive" && status !== "suspended") {
+    return { success: false, message: "Invalid status." };
+  }
+  const passwordError = validatePasswordStrength(password);
+  if (passwordError) {
+    return { success: false, message: passwordError };
+  }
 
   // Create the new user
   const { data: authData, error: authError } =
@@ -79,13 +125,24 @@ export async function createUser(formData: FormData) {
   if (authError) return { success: false, message: authError.message };
 
   if (authData.user) {
-    // Update Profile
-    const { error: profileError } = await supabase
+    // Update Profile — verify the row exists (trigger creates it); a
+    // zero-row update means the trigger is missing, so roll the auth user
+    // back instead of leaving an orphan that can never log in.
+    const { data: updatedRows, error: profileError } = await supabase
       .from("profiles")
       .update({ role: role, status: status, created_by: authCheck.userId })
-      .eq("id", authData.user.id);
+      .eq("id", authData.user.id)
+      .select("id");
 
-    if (profileError) return { success: false, message: profileError.message };
+    if (profileError || !updatedRows || updatedRows.length === 0) {
+      await supabase.auth.admin.deleteUser(authData.user.id);
+      return {
+        success: false,
+        message:
+          profileError?.message ||
+          "Profile setup failed (missing trigger). User was rolled back — contact support.",
+      };
+    }
 
     // Ban user if not active
     if (status !== "active") {
@@ -239,7 +296,7 @@ export async function updateUser(formData: FormData) {
   return { success: true, message: "User updated successfully!" };
 }
 
-// Action to send a password reset email
+// Action to send a password reset email (actually sends via Resend).
 export async function resetUserPassword(email: string) {
   // Check authorization first
   const authCheck = await checkSuperAdminAccess();
@@ -247,21 +304,88 @@ export async function resetUserPassword(email: string) {
     return { success: false, message: authCheck.message };
   }
 
-  const supabase = await createAdminClient();
+  const normalizedEmail = (email || "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    return { success: false, message: "A valid email address is required." };
+  }
 
-  const { error } = await supabase.auth.admin.generateLink({
+  // Throttle: reset mails cost Resend quota and enable harassment.
+  const rate = await checkRateLimit({
+    key: `pwdreset:${authCheck.userId}:${normalizedEmail}`,
+    limit: 3,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (!rate.allowed) {
+    return {
+      success: false,
+      message: "Too many reset requests. Please try again later.",
+    };
+  }
+
+  const supabase = await createAdminClient();
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || "https://kaizenhrms.com";
+
+  // generateLink alone sends nothing — the returned action_link must be
+  // emailed. Point it at our callback so the code becomes a session.
+  const { data: linkData, error } = await supabase.auth.admin.generateLink({
     type: "recovery",
-    email: email,
+    email: normalizedEmail,
+    options: { redirectTo: `${siteUrl}/auth/callback?next=/auth/reset-password` },
   });
 
-  if (error) {
-    return { success: false, message: error.message };
+  if (error || !linkData?.properties?.action_link) {
+    // Generic message: don't reveal whether the address exists.
+    return {
+      success: false,
+      message: "Could not send reset link. Please try again.",
+    };
+  }
+
+  // Deliver the link via Resend (Supabase does not send it for us).
+  try {
+    const settings = await getPublicSettings();
+    const senderEmail =
+      process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
+    const senderName = settings.email_sender_name || "KaizenHR";
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const html = await render(
+      PasswordResetEmail({ resetUrl: linkData.properties.action_link })
+    );
+
+    const { error: sendError } = await resend.emails.send({
+      from: `${senderName} <${senderEmail}>`,
+      to: normalizedEmail,
+      subject: "Reset your KaizenHR password",
+      html,
+    });
+
+    if (sendError) {
+      throw new Error(sendError.message);
+    }
+
+    await supabase.from("email_send_log").insert({
+      email_type: "password_reset",
+      status: "sent",
+    });
+  } catch (sendError) {
+    console.error("Password reset email failed:", sendError);
+    await supabase.from("email_send_log").insert({
+      email_type: "password_reset",
+      status: "failed",
+      error_message:
+        sendError instanceof Error ? sendError.message : "Unknown error",
+    });
+    return {
+      success: false,
+      message: "Could not send reset email. Please try again.",
+    };
   }
 
   const { data: targetUser } = await supabase
     .from("profiles")
     .select("id")
-    .eq("email", email)
+    .eq("email", normalizedEmail)
     .single();
 
   await supabase.from("admin_audit_log").insert({
@@ -269,8 +393,8 @@ export async function resetUserPassword(email: string) {
     action: "user.password_reset",
     target_user_id: targetUser?.id || null,
     details: {
-      message: `Sent password reset link to ${email}`,
-      email: email,
+      message: `Sent password reset link to ${normalizedEmail}`,
+      email: normalizedEmail,
     },
   });
 

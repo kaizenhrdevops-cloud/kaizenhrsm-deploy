@@ -255,7 +255,8 @@ export default function EmailLogicPage() {
                               </strong>{" "}
                               waiting in queue. The system performs a quota
                               check and discovers{" "}
-                              <strong>80 emails remaining</strong>.
+                              <strong>100 emails remaining</strong> today
+                              (limit is configurable in settings).
                             </p>
                             <div className="bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-200 dark:border-indigo-800 rounded-xl p-4 mb-4">
                               <div className="flex items-start space-x-3">
@@ -267,9 +268,11 @@ export default function EmailLogicPage() {
                                     Smart Batch Processing
                                   </p>
                                   <p className="text-xs text-indigo-700 dark:text-indigo-400">
-                                    Sends to first 80 subscribers, then
-                                    automatically queues the remaining 70 for
-                                    tomorrow.
+                                    Sends 10 per hourly tick, ~600ms apart
+                                    (Resend free allows ~2/sec), then keeps
+                                    the rest queued. Recipients who
+                                    unsubscribed since scheduling are skipped,
+                                    and rate-limited sends retry next tick.
                                   </p>
                                 </div>
                               </div>
@@ -280,7 +283,7 @@ export default function EmailLogicPage() {
                                   Processed
                                 </div>
                                 <div className="text-xl font-bold text-green-600 dark:text-green-400">
-                                  80
+                                  10
                                 </div>
                               </div>
                               <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg text-center">
@@ -288,7 +291,7 @@ export default function EmailLogicPage() {
                                   Queued
                                 </div>
                                 <div className="text-xl font-bold text-amber-600 dark:text-amber-400">
-                                  70
+                                  140
                                 </div>
                               </div>
                               <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg text-center">
@@ -296,7 +299,7 @@ export default function EmailLogicPage() {
                                   Quota Left
                                 </div>
                                 <div className="text-xl font-bold text-gray-400">
-                                  0
+                                  90
                                 </div>
                               </div>
                             </div>
@@ -323,9 +326,10 @@ export default function EmailLogicPage() {
                           </div>
                           <div className="p-6">
                             <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-                              The 70 remaining subscribers are still queued. At
-                              11:00 PM, the cron job runs again and processes
-                              them based on that day's available quota.
+                              The 140 remaining subscribers stay queued. Each
+                              hourly tick sends the next 10 within that
+                              day&apos;s available quota, and continues the
+                              next day until done.
                             </p>
                             <div className="flex items-center space-x-2 text-sm text-green-600 dark:text-green-400">
                               <CheckCircle className="w-4 h-4" />
@@ -379,10 +383,12 @@ export default function EmailLogicPage() {
                           <XCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
                           <div>
                             <div className="font-semibold text-gray-900 dark:text-white text-sm">
-                              Emails #101-1000 are blocked
+                              Emails #101-1000 wait in queue
                             </div>
                             <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                              Marked as "Failed" and permanently lost
+                              The per-tick quota gate caps each run — overflow
+                              stays queued for the next tick/day instead of
+                              sending
                             </div>
                           </div>
                         </div>
@@ -391,10 +397,11 @@ export default function EmailLogicPage() {
                           <XCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
                           <div>
                             <div className="font-semibold text-gray-900 dark:text-white text-sm">
-                              No queue created
+                              Delivery stretches over ~10 days
                             </div>
                             <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                              900 subscribers never receive the newsletter
+                              900 subscribers at 100/day — nothing is lost,
+                              but it is slow
                             </div>
                           </div>
                         </div>

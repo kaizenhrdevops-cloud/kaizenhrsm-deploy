@@ -59,8 +59,25 @@ export default function NewsletterForm() {
             setMessage("Captcha verification failed. Please try again.");
             setIsError(true);
           },
+          // Token sat unused past its TTL while a submit was waiting for
+          // it: release the spinner so the user can retry. Guarded by the
+          // pending ref so an unrelated expiry can't clobber an in-flight
+          // submit that already consumed its token.
           "expired-callback": () => {
-            pendingEmailRef.current = null;
+            if (pendingEmailRef.current) {
+              pendingEmailRef.current = null;
+              setIsLoading(false);
+              setMessage("Verification expired. Please try again.");
+              setIsError(true);
+            }
+          },
+          "timeout-callback": () => {
+            if (pendingEmailRef.current) {
+              pendingEmailRef.current = null;
+              setIsLoading(false);
+              setMessage("Verification timed out. Please try again.");
+              setIsError(true);
+            }
           },
         });
       } catch {

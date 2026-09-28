@@ -67,6 +67,7 @@ export default async function DashboardPage() {
   // 1. Fetch Data (Optimized targeted queries)
   const [
     postsResult,
+    totalPostsResult,
     contactsResult,
     totalSubsResult,
     recentSubsResult,
@@ -80,29 +81,35 @@ export default async function DashboardPage() {
       .select("id, title, status, created_at")
       .order("created_at", { ascending: false })
       .limit(20),
+    supabase.from("posts").select("*", { count: "exact", head: true }),
     supabase
       .from("contacts")
       .select("id, full_name, company, status, created_at")
       .order("created_at", { ascending: false })
       .limit(50),
-    // Total count without pulling rows across network
+    // Total count without pulling rows across network.
+    // Only 'subscribed' — unverified/unsubscribed never receive mail, so
+    // counting them here inflated the card vs. the send-modal count.
     supabase
       .from("newsletter_subscribers")
-      .select("*", { count: "exact", head: true }),
+      .select("*", { count: "exact", head: true })
+      .eq("status", "subscribed"),
     // Only subscribers in trend/chart window
     supabase
       .from("newsletter_subscribers")
       .select("id, status, created_at")
+      .eq("status", "subscribed")
       .gte("created_at", earliestTrendDate)
       .order("created_at", { ascending: true }),
     // Baseline count for 30-day cumulative chart
     supabase
       .from("newsletter_subscribers")
       .select("*", { count: "exact", head: true })
+      .eq("status", "subscribed")
       .lt("created_at", thirtyDaysAgoISO),
     supabase
       .from("newsletter_campaigns")
-      .select("id, subject, status, sent_at, total_sent, created_at")
+      .select("id, subject, status, sent_at, total_sent, sent_count, created_at")
       .order("created_at", { ascending: false })
       .limit(20),
     supabase.rpc("get_remaining_daily_email_quota"),
@@ -117,6 +124,7 @@ export default async function DashboardPage() {
 
   // 2. Process Raw Data
   const posts = postsResult.data || [];
+  const totalPostsCount = totalPostsResult.count ?? posts.length;
   const contacts = contactsResult.data || [];
   const totalSubscribersCount = totalSubsResult.count || 0;
   const recentSubscribers = recentSubsResult.data || [];
@@ -152,11 +160,20 @@ export default async function DashboardPage() {
   const contactTrend = getTrend(contacts);
   const subTrend = getTrend(recentSubscribers);
 
+  // Humanize raw campaign statuses (in_progress → In Progress).
+  function prettyCampaignStatus(status: string | null | undefined): string {
+    if (!status) return "Draft";
+    return status
+      .split("_")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
+  }
+
   // --- 3. Build Stats Cards ---
   const stats: DashboardStat[] = [
     {
       label: "Total Posts",
-      value: posts.length, // Note: For total count in huge DB, use proper count query. For now this works for recent.
+      value: totalPostsCount,
       href: "/admin/blog",
       iconName: "FileText",
       color: "blue",
@@ -186,17 +203,22 @@ export default async function DashboardPage() {
     },
     {
       label: "Last Campaign",
-      value: campaigns[0]?.total_sent || 0,
+      // Code writes sent_count; total_sent is legacy and never updated.
+      value: campaigns[0]?.sent_count ?? campaigns[0]?.total_sent ?? 0,
       href: "/admin/newsletter",
       iconName: "Activity",
       color: "green",
       trend: "neutral",
-      trendValue: campaigns[0]?.status || "Draft",
+      trendValue: prettyCampaignStatus(campaigns[0]?.status),
       trendLabel: "Status",
     },
   ];
 
   if (isSuperAdmin) {
+    const { getNewsletterDailyLimit } = await import(
+      "@/app/admin/blog/newsletterActions"
+    );
+    const dailyEmailLimit = await getNewsletterDailyLimit();
     stats.push({
       label: "Email Quota",
       value: remainingQuota,
@@ -204,8 +226,8 @@ export default async function DashboardPage() {
       iconName: "Server",
       color: remainingQuota < 20 ? "red" : "gray",
       trend: "down",
-      trendValue: `${100 - remainingQuota} used`,
-      trendLabel: "Daily limit: 100",
+      trendValue: `${Math.max(0, dailyEmailLimit - remainingQuota)} used`,
+      trendLabel: `Daily limit: ${dailyEmailLimit}`,
     });
   }
 

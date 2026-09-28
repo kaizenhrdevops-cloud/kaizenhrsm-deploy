@@ -42,6 +42,11 @@ function defaultTableContent() {
           row([cell("Cell 4"), cell("Cell 5"), cell("Cell 6")]),
         ],
       },
+      // Trailing paragraph: without a block after the table the cursor has
+      // nowhere to land, so authors couldn't type below a trailing table.
+      // (The published renderer trims trailing blank lines, so this adds
+      // no visible gap on the live post.)
+      { type: "paragraph" },
     ],
   };
 }

@@ -34,6 +34,7 @@ type NewsletterData = {
   postPreview: string;
   postImage: string | null;
   subscriberCount: number;
+  dailyQuota?: number;
 };
 
 export default function ConfirmSendModal({
@@ -273,6 +274,20 @@ export default function ConfirmSendModal({
                         </div>
                       )}
                     </div>
+                    {data.subscriberCount > 0 && (
+                      <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                        Sends ~10/hour at roughly{" "}
+                        {data.dailyQuota ?? 100} mails/day — full delivery
+                        takes about{" "}
+                        {Math.max(
+                          1,
+                          Math.ceil(
+                            data.subscriberCount / (data.dailyQuota ?? 100)
+                          )
+                        )}{" "}
+                        day(s).
+                      </p>
+                    )}
                   </div>
                 </div>
 

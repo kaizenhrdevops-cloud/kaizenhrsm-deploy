@@ -22,6 +22,10 @@ import {
   DndContext,
   closestCenter,
   DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+  defaultDropAnimationSideEffects,
+  type DropAnimation,
   MouseSensor,
   TouchSensor,
   KeyboardSensor,
@@ -50,44 +54,77 @@ type PostBlock = Database["public"]["Tables"]["post_blocks"]["Row"];
 interface Step3ContentProps {
   post: Post;
   setPost: React.Dispatch<React.SetStateAction<Post>>;
-  initialBlocks: PostBlock[];
+  blocks: PostBlock[];
+  setBlocks: React.Dispatch<React.SetStateAction<PostBlock[]>>;
   getEditorJSON: React.MutableRefObject<(() => any) | undefined>;
   setAutoSaveStatus: (status: "idle" | "saving" | "saved") => void;
+  flushRef?: React.MutableRefObject<(() => Promise<boolean>) | undefined>;
 }
 
 export default function Step3Content({
   post,
   setPost,
-  initialBlocks,
+  blocks,
+  setBlocks,
   getEditorJSON,
   setAutoSaveStatus,
+  flushRef,
 }: Step3ContentProps) {
-  const [blocks, setBlocks] = useState<PostBlock[]>(initialBlocks);
   const [showBlockMenu, setShowBlockMenu] = useState(false);
+  // Id of the block currently being dragged (drives the DragOverlay preview)
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const activeBlock = activeId
+    ? blocks.find((b) => b.id === activeId)
+    : undefined;
 
-  // --- ADDED: Autosave Logic ---
+  // --- Autosave Logic ---
+  // Latest snapshots for the debounced saver / flush (avoids stale closures).
+  const blocksRef = useRef(blocks);
+  const postRef = useRef(post);
+  blocksRef.current = blocks;
+  postRef.current = post;
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
   const isFirstRender = useRef(true); // To prevent saving on initial load
+  const isSavingRef = useRef(false);
 
-  // The function that performs the save
-  const savePost = useCallback(async () => {
+  // The function that performs the save. Returns true on success.
+  const savePost = useCallback(async (): Promise<boolean> => {
+    if (isSavingRef.current) return false;
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
 
+    isSavingRef.current = true;
     setAutoSaveStatus("saving");
 
-    // This now calls your new draft function
-    const result = await autoSaveDraft(
-      post.id,
-      post, // Pass the whole post state (which has title, excerpt, etc.)
-      blocks // Pass the whole blocks state
-    );
+    try {
+      // Calls the draft function with the LATEST state via refs
+      const result = await autoSaveDraft(
+        postRef.current.id,
+        postRef.current,
+        blocksRef.current
+      );
 
-    if (result.success) {
-      setAutoSaveStatus("saved");
-    } else {
+      setAutoSaveStatus(result.success ? "saved" : "idle");
+      return result.success;
+    } catch {
       setAutoSaveStatus("idle");
+      return false;
+    } finally {
+      isSavingRef.current = false;
     }
-  }, [post, blocks, setAutoSaveStatus, post.id]);
+  }, [setAutoSaveStatus]);
+
+  // Flush = cancel pending debounce + save immediately.
+  // Registered to the parent so Next/Back can await it before unmount.
+  useEffect(() => {
+    if (!flushRef) return;
+    flushRef.current = async () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      return savePost();
+    };
+    return () => {
+      flushRef.current = undefined;
+    };
+  }, [flushRef, savePost]);
 
   // This effect listens for changes and sets the debounce timer
   useEffect(() => {
@@ -100,7 +137,7 @@ export default function Step3Content({
       clearTimeout(debounceTimer.current);
     }
     debounceTimer.current = setTimeout(() => {
-      savePost();
+      void savePost();
     }, 2000);
 
     return () => {
@@ -108,15 +145,17 @@ export default function Step3Content({
         clearTimeout(debounceTimer.current);
       }
     };
-  }, [post, blocks, savePost, setAutoSaveStatus]);
+    // Depend on the VALUES (not the saver) so edits re-arm the timer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [post, blocks]);
   // --- END: Autosave Logic ---
 
-  // Expose a function to get all blocks as JSON
+  // Expose a function to get all blocks as JSON (always latest via ref)
   React.useEffect(() => {
     getEditorJSON.current = () => {
-      return { blocks }; // Return current blocks state
+      return { blocks: blocksRef.current };
     };
-  }, [blocks, getEditorJSON]);
+  }, [getEditorJSON]);
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -132,6 +171,13 @@ export default function Step3Content({
     }),
     useSensor(KeyboardSensor)
   );
+
+  // Gentle settle animation when the preview drops into place.
+  const dropAnimation: DropAnimation = {
+    sideEffects: defaultDropAnimationSideEffects({
+      styles: { active: { opacity: "0.4" } },
+    }),
+  };
 
   const handleAddBlock = (type: BlockType) => {
     const newBlock: PostBlock = {
@@ -255,6 +301,7 @@ export default function Step3Content({
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+    setActiveId(null);
     if (over && active.id !== over.id) {
       setBlocks((items) => {
         const oldIndex = items.findIndex((item) => item.id === active.id);
@@ -265,6 +312,14 @@ export default function Step3Content({
         return newItems.map((item, index) => ({ ...item, order_index: index }));
       });
     }
+  };
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragCancel = () => {
+    setActiveId(null);
   };
 
   const renderBlock = (block: PostBlock) => {
@@ -341,7 +396,9 @@ export default function Step3Content({
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
           >
             <SortableContext
               items={blocks.map((b) => b.id)}
@@ -353,6 +410,14 @@ export default function Step3Content({
                 </BlockWrapper>
               ))}
             </SortableContext>
+            {/* Floating preview that follows the cursor. Static snapshot
+                (not a second live editor) so it can't stretch, steal focus,
+                or double-mount TipTap instances mid-drag. */}
+            <DragOverlay adjustScale={false} dropAnimation={dropAnimation}>
+              {activeBlock ? (
+                <DragPreviewCard block={activeBlock} />
+              ) : null}
+            </DragOverlay>
           </DndContext>
         </div>
 
@@ -428,6 +493,92 @@ export default function Step3Content({
       </div>
     </div>
   );
+}
+/* Static drag preview — plain snapshot, never a live editor instance. */
+function DragPreviewCard({ block }: { block: PostBlock }) {
+  const meta = BLOCK_PREVIEW_META[block.type] ?? {
+    label: block.type,
+    Icon: Type,
+  };
+  const { Icon } = meta;
+  const preview = getBlockPreview(block);
+
+  return (
+    <div className="w-[min(56rem,calc(100vw-3rem))] max-h-[300px] overflow-hidden rounded-xl border-2 border-[#008080] bg-white dark:bg-gray-800 shadow-2xl pointer-events-none">
+      <div className="flex items-center gap-2 border-b border-gray-200 dark:border-gray-700 px-4 py-2">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#008080]/10 px-2.5 py-0.5 text-xs font-semibold text-[#008080] dark:text-teal-300">
+          <Icon size={13} />
+          {meta.label}
+        </span>
+        <span className="text-xs text-gray-400">Moving…</span>
+      </div>
+      <div className="px-4 py-3">
+        {block.type === "image" && (block.content as any)?.url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={(block.content as any).url}
+            alt=""
+            className="h-28 w-full rounded-lg object-cover"
+          />
+        ) : block.type === "heading" ? (
+          <p className="truncate text-2xl font-extrabold tracking-tight text-gray-900 dark:text-white">
+            {preview || "Heading"}
+          </p>
+        ) : (
+          <p className="line-clamp-4 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
+            {preview || "Empty block"}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const BLOCK_PREVIEW_META: Record<
+  string,
+  { label: string; Icon: typeof Type }
+> = {
+  paragraph: { label: "Paragraph", Icon: Type },
+  heading: { label: "Heading", Icon: Heading1 },
+  image: { label: "Image", Icon: Image },
+  video: { label: "Video", Icon: Video },
+  quote: { label: "Quote", Icon: Quote },
+  code: { label: "Code", Icon: Code },
+  table: { label: "Table", Icon: Table },
+};
+
+/** Plain-text excerpt of a block for the drag preview. */
+function getBlockPreview(block: PostBlock): string {
+  const c = block.content as any;
+  if (!c) return "";
+  switch (block.type) {
+    case "heading":
+    case "quote":
+      return (c.text || "").toString().slice(0, 220);
+    case "code":
+      return (c.code || "").toString().slice(0, 220);
+    case "video":
+      return (c.url || "").toString().slice(0, 220);
+    case "image":
+      return (c.caption || c.alt || "").toString().slice(0, 220);
+    case "paragraph":
+    case "table":
+    default:
+      return extractTiptapText(c).slice(0, 220);
+  }
+}
+
+function extractTiptapText(node: any): string {
+  if (!node) return "";
+  if (node.type === "text" && typeof node.text === "string") return node.text;
+  if (typeof node.text === "string" && !node.content) return node.text;
+  if (Array.isArray(node.content)) {
+    return node.content
+      .map(extractTiptapText)
+      .filter(Boolean)
+      .join(" ");
+  }
+  return "";
 }
 
 function BlockMenuItem({

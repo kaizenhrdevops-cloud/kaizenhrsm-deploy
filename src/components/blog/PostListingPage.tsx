@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { getBrowserClient } from "@/lib/client";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
@@ -98,7 +99,7 @@ function getPostSnippet(post: ListingPost, maxWords = 14): string | null {
   return words.slice(0, maxWords).join(" ") + "...";
 }
 
-export default function PostListingPage({
+function PostListingContent({
   category,
   title,
   subtitle,
@@ -107,9 +108,16 @@ export default function PostListingPage({
   emptyActionHref = "/company/contact-us",
   emptyActionLabel = "Get in Touch",
 }: PostListingPageProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Read current page from URL params so back/forward button preserves state
+  const pageParam = searchParams.get("page");
+  const currentPage = pageParam ? Math.max(1, parseInt(pageParam, 10) || 1) : 1;
+
   const [posts, setPosts] = useState<ListingPost[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
   const [totalPosts, setTotalPosts] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const contentTopRef = useRef<HTMLDivElement>(null);
@@ -159,7 +167,15 @@ export default function PostListingPage({
   };
 
   const handlePageChange = (newPage: number) => {
-    setCurrentPage(newPage);
+    const params = new URLSearchParams(searchParams.toString());
+    if (newPage <= 1) {
+      params.delete("page");
+    } else {
+      params.set("page", newPage.toString());
+    }
+    const qs = params.toString();
+    router.push(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+
     if (contentTopRef.current) {
       const topOffset = contentTopRef.current.getBoundingClientRect().top + window.scrollY - 100;
       window.scrollTo({ top: topOffset, behavior: "smooth" });
@@ -317,9 +333,12 @@ export default function PostListingPage({
                 </div>
               )}
 
-              {/* Featured Post (First Post) */}
+              {/* Featured Post (First Post) - ENTIRE card is a link */}
               {featuredPost && (
-                <article className="group relative bg-white border border-gray-200/80 rounded-2xl overflow-hidden hover:border-gray-300 hover:shadow-xl transition-all duration-300">
+                <Link
+                  href={`${basePath}/${featuredPost.slug}`}
+                  className="group relative block bg-white border border-gray-200/80 rounded-2xl overflow-hidden hover:border-gray-300 hover:shadow-xl transition-all duration-300 cursor-pointer"
+                >
                   <div className="grid md:grid-cols-12 gap-0 md:items-stretch">
                     {/* Featured Image */}
                     <div className="md:col-span-7 relative aspect-[16/10] md:aspect-auto md:min-h-[380px] bg-gray-50 overflow-hidden">
@@ -349,9 +368,7 @@ export default function PostListingPage({
                         )}
 
                         <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 group-hover:text-teal-700 transition-colors duration-200 line-clamp-3 leading-snug">
-                          <Link href={`${basePath}/${featuredPost.slug}`}>
-                            {featuredPost.title}
-                          </Link>
+                          {featuredPost.title}
                         </h2>
 
                         {/* 10-15 word snippet from post content or excerpt */}
@@ -366,32 +383,27 @@ export default function PostListingPage({
                       </div>
 
                       <div className="pt-6 mt-6 border-t border-gray-100">
-                        <Link
-                          href={`${basePath}/${featuredPost.slug}`}
-                          className="inline-flex items-center text-sm font-semibold text-teal-700 group-hover:text-teal-800 gap-2 transition-colors"
-                        >
+                        <span className="inline-flex items-center text-sm font-semibold text-teal-700 group-hover:text-teal-800 gap-2 transition-colors">
                           Read More
                           <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform duration-200" />
-                        </Link>
+                        </span>
                       </div>
                     </div>
                   </div>
-                </article>
+                </Link>
               )}
 
-              {/* Grid Posts */}
+              {/* Grid Posts - ENTIRE card is a link */}
               {gridPosts.length > 0 && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                   {gridPosts.map((post) => (
-                    <article
+                    <Link
                       key={post.id}
-                      className="group flex flex-col bg-white border border-gray-200/80 rounded-2xl overflow-hidden hover:border-gray-300 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+                      href={`${basePath}/${post.slug}`}
+                      className="group flex flex-col bg-white border border-gray-200/80 rounded-2xl overflow-hidden hover:border-gray-300 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer"
                     >
                       {/* Card Image */}
-                      <Link
-                        href={`${basePath}/${post.slug}`}
-                        className="relative aspect-[16/10] bg-gray-50 overflow-hidden block"
-                      >
+                      <div className="relative aspect-[16/10] bg-gray-50 overflow-hidden block">
                         {post.featured_image ? (
                           <img
                             src={post.featured_image}
@@ -403,7 +415,7 @@ export default function PostListingPage({
                             <ImageIcon className="w-10 h-10 stroke-[1.2]" />
                           </div>
                         )}
-                      </Link>
+                      </div>
 
                       {/* Card Body */}
                       <div className="p-6 flex flex-col flex-grow justify-between">
@@ -418,7 +430,7 @@ export default function PostListingPage({
                           )}
 
                           <h3 className="text-lg font-bold text-gray-900 group-hover:text-teal-700 transition-colors duration-200 line-clamp-2 leading-snug">
-                            <Link href={`${basePath}/${post.slug}`}>{post.title}</Link>
+                            {post.title}
                           </h3>
 
                           {/* 10-15 word snippet from post content or excerpt */}
@@ -433,16 +445,13 @@ export default function PostListingPage({
                         </div>
 
                         <div className="pt-4 mt-5 border-t border-gray-100 flex items-center justify-between">
-                          <Link
-                            href={`${basePath}/${post.slug}`}
-                            className="inline-flex items-center text-sm font-semibold text-teal-700 group-hover:text-teal-800 gap-1.5 transition-colors"
-                          >
+                          <span className="inline-flex items-center text-sm font-semibold text-teal-700 group-hover:text-teal-800 gap-1.5 transition-colors">
                             Read More
                             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
-                          </Link>
+                          </span>
                         </div>
                       </div>
-                    </article>
+                    </Link>
                   ))}
                 </div>
               )}
@@ -464,5 +473,27 @@ export default function PostListingPage({
 
       <Footer />
     </div>
+  );
+}
+
+export default function PostListingPage(props: PostListingPageProps) {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-white text-gray-900 flex flex-col">
+          <Navbar />
+          <main className="flex-grow pt-24 sm:pt-28 pb-20">
+            <Container className="py-12">
+              <div className="border border-gray-200/70 rounded-2xl p-6 sm:p-8 animate-pulse bg-white">
+                <div className="aspect-[16/10] md:h-80 bg-gray-100 rounded-xl" />
+              </div>
+            </Container>
+          </main>
+          <Footer />
+        </div>
+      }
+    >
+      <PostListingContent {...props} />
+    </Suspense>
   );
 }

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import toast from "react-hot-toast";
 import { getBrowserClient } from "@/lib/client";
-import { PlusCircle, Edit, Trash2, Users, Shield, UserX } from "lucide-react";
+import { PlusCircle, Edit, Trash2, Users, Shield, UserX, KeyRound } from "lucide-react";
 import CreateUserModal from "@/components/admin/CreateUserModal";
 import ConfirmDeleteModal from "@/components/shared/ConfirmDeleteModal";
 import UpdateUserModal from "@/components/admin/UpdateUserModal";
@@ -11,7 +11,7 @@ import DataTable, { type Column } from "@/components/shared/DataTable";
 import RoleBadge from "@/components/ui/RoleBadge";
 import Button from "@/components/ui/Button";
 import { type UserProfile } from "@/types/user";
-import { deleteUser } from "./actions";
+import { deleteUser, resetUserPassword } from "./actions";
 import { useRouter } from "next/navigation";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 
@@ -92,18 +92,22 @@ export default function UserManagementPage() {
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase.rpc("get_all_users_with_profiles");
-    if (error) {
+    // Server action (service role): the RPC no longer permits browser
+    // callers, so listing goes through here with a super_admin check.
+    const { listUsers } = await import("./actions");
+    const result = await listUsers();
+    if (!result.success) {
       setError(
-        "Could not fetch user data. You may not have the required permissions."
+        result.message ||
+          "Could not fetch user data. You may not have the required permissions."
       );
-      console.error("Error fetching users:", error);
+      console.error("Error fetching users:", result.message);
     } else {
-      setUsers(data as UserProfile[]);
+      setUsers(result.users as UserProfile[]);
       setError(null);
     }
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     const initializePage = async () => {
@@ -119,7 +123,7 @@ export default function UserManagementPage() {
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("role")
+        .select("role, status")
         .eq("id", user.id)
         .single();
 
@@ -129,9 +133,9 @@ export default function UserManagementPage() {
         return;
       }
 
-      if (profile.role !== "super_admin") {
+      if (profile.role !== "super_admin" || profile.status !== "active") {
         setError(
-          "Access Denied. Only super administrators can access this page."
+          "Access Denied. Only active super administrators can access this page."
         );
         setLoading(false);
         return;
@@ -180,6 +184,22 @@ export default function UserManagementPage() {
     setIsDeleting(false);
     setIsDeleteModalOpen(false);
     setUserToDelete(null);
+  };
+
+  const handleSendResetLink = async (user: UserProfile) => {
+    if (!user.email) {
+      toast.error("This user has no email address on file.");
+      return;
+    }
+    const toastId = toast.loading(`Sending reset link to ${user.email}…`);
+    const result = await resetUserPassword(user.email);
+    if (result.success) {
+      toast.success("Password reset link sent.", { id: toastId });
+    } else {
+      toast.error(result.message || "Failed to send reset link.", {
+        id: toastId,
+      });
+    }
   };
 
   // Define table columns
@@ -336,6 +356,14 @@ export default function UserManagementPage() {
               aria-label={`Edit ${user.full_name}`}
             >
               <Edit className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => void handleSendResetLink(user)}
+              className="font-medium text-amber-600 transition-colors hover:text-amber-800 dark:text-amber-500 dark:hover:text-amber-400"
+              aria-label={`Send password reset link to ${user.full_name}`}
+              title="Send password reset link"
+            >
+              <KeyRound className="w-5 h-5" />
             </button>
             {user.id !== currentUserId && (
               <button

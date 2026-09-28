@@ -2,13 +2,17 @@
 "use client";
 
 import { useEditor, EditorContent } from "@tiptap/react";
+import { BubbleMenu } from "@tiptap/react/menus";
 import toast from "react-hot-toast";
 import Highlight from "@tiptap/extension-highlight";
 import TextAlign from "@tiptap/extension-text-align";
 import { Table } from "@tiptap/extension-table";
-import { TableCell } from "@tiptap/extension-table-cell";
-import { TableHeader } from "@tiptap/extension-table-header";
 import { TableRow } from "@tiptap/extension-table-row";
+import {
+  CustomTableCell,
+  CustomTableHeader,
+} from "./table-extensions";
+import TableContextMenu from "./table-context-menu";
 import Placeholder from "@tiptap/extension-placeholder";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
@@ -35,6 +39,8 @@ import {
   AlignCenter,
   AlignRight,
   AlignJustify,
+  Check,
+  X,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -57,40 +63,14 @@ export default function ParagraphBlock({
   const [linkUrl, setLinkUrl] = useState("");
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showTableMenu, setShowTableMenu] = useState(false);
-
-  // DEBUG: Print JSON + warn on missing href/textAlign
-  const debugJson = (json: any) => {
-    const warnings: string[] = [];
-
-    const walk = (node: any) => {
-      if (
-        (node.type === "paragraph" || node.type === "heading") &&
-        !node.attrs?.textAlign
-      ) {
-        warnings.push(`MISSING textAlign on ${node.type}`);
-      }
-      if (node.marks) {
-        node.marks.forEach((m: any) => {
-          if (m.type === "link" && !m.attrs?.href) {
-            warnings.push(`MISSING href on link: ${JSON.stringify(m)}`);
-          }
-        });
-      }
-      if (node.content) node.content.forEach(walk);
-    };
-
-    if (json.content) json.content.forEach(walk);
-
-    if (warnings.length > 0) {
-      console.warn("EDITOR WARNINGS:", warnings.join(" | "));
-    }
-
-    console.log(
-      "%cEDITOR JSON →",
-      "color: #06b6d4; font-weight: bold;",
-      JSON.stringify(json, null, 2)
-    );
-  };
+  // Inline URL field inside the selection bubble menu.
+  const [showBubbleLinkInput, setShowBubbleLinkInput] = useState(false);
+  const [bubbleLinkUrl, setBubbleLinkUrl] = useState("");
+  // Right-click (spreadsheet-style) table menu position, if open.
+  const [tableMenuPos, setTableMenuPos] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -104,7 +84,9 @@ export default function ParagraphBlock({
         strike: false,
       }),
 
-      Placeholder.configure({ placeholder: "Type / to see commands..." }),
+      Placeholder.configure({
+        placeholder: "Start writing… (select text to format it)",
+      }),
 
       // LINK — FIXED: href, target, rel saved
       Link.extend({
@@ -138,9 +120,10 @@ export default function ParagraphBlock({
         HTMLAttributes: { class: "bg-yellow-200 dark:bg-yellow-800" },
       }),
 
-      // TEXT ALIGN — FIXED: saves textAlign on node
+      // TEXT ALIGN — includes table cells so alignment buttons and the
+      // right-click menu work on text inside tables too.
       TextAlign.configure({
-        types: ["paragraph", "heading"],
+        types: ["paragraph", "heading", "tableHeader", "tableCell"],
         defaultAlignment: "left",
       }),
 
@@ -149,11 +132,16 @@ export default function ParagraphBlock({
         HTMLAttributes: { class: "border-collapse w-full" },
       }),
       TableRow,
-      TableHeader,
-      TableCell,
+      CustomTableHeader,
+      CustomTableCell,
     ],
 
-    content: content,
+    // Fall back to an empty doc for legacy / malformed block content
+    // instead of crashing the whole editor step.
+    content: content ?? {
+      type: "doc",
+      content: [{ type: "paragraph" }],
+    },
 
     editorProps: {
       attributes: {
@@ -163,25 +151,26 @@ export default function ParagraphBlock({
     },
 
     onUpdate: ({ editor }) => {
-      // Force fresh state
+      // Fresh (cloned) state so later editor mutations can't corrupt
+      // what we already handed to autosave.
       const json = JSON.parse(JSON.stringify(editor.getJSON()));
-      console.log("FRESH JSON →", json);
       onChange(json);
     },
   });
 
-  const addLink = () => {
-    if (!linkUrl || !editor) return;
+  // Shared by the toolbar link popup and the bubble-menu link field.
+  // Returns true when a link was applied.
+  const applyLink = (rawUrl: string): boolean => {
+    if (!editor) return false;
+    const trimmed = rawUrl.trim();
+    if (!trimmed) return false;
 
-    let url = linkUrl.trim();
-    if (!url.startsWith("http://") && !url.startsWith("https://")) {
-      url = "https://" + url;
-    }
+    const url = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 
     const { from, to } = editor.state.selection;
     if (from === to) {
       toast.error("Please select some text first.");
-      return;
+      return false;
     }
 
     editor
@@ -193,13 +182,57 @@ export default function ParagraphBlock({
         rel: "noopener noreferrer nofollow",
       })
       .run();
+    return true;
+  };
 
-    setLinkUrl("");
-    setShowLinkInput(false);
+  const addLink = () => {
+    if (!linkUrl || !editor) return;
+    if (applyLink(linkUrl)) {
+      setLinkUrl("");
+      setShowLinkInput(false);
+    }
+  };
+
+  const applyBubbleLink = () => {
+    if (applyLink(bubbleLinkUrl)) {
+      setBubbleLinkUrl("");
+      setShowBubbleLinkInput(false);
+    }
   };
 
   const removeLink = () => {
     editor?.chain().focus().unsetLink().run();
+  };
+
+  // Spreadsheet-style right-click: only hijack the menu when the click is
+  // inside a table — everywhere else keeps the native browser menu.
+  const handleContextMenu = (e: React.MouseEvent) => {
+    if (!editor) return;
+    const target = e.target as HTMLElement | null;
+    const clickedInTable = !!target?.closest?.("table");
+    if (!clickedInTable && !editor.isActive("table")) return;
+
+    e.preventDefault();
+
+    // If the cursor isn't already in a table (e.g. right-clicking a cell
+    // while editing elsewhere), jump it to the clicked cell so row / column
+    // / cell commands hit the right place. An existing table selection
+    // (including multi-cell drag selections) is left untouched.
+    if (!editor.isActive("table")) {
+      try {
+        const coords = editor.view.posAtCoords({
+          left: e.clientX,
+          top: e.clientY,
+        });
+        if (coords) {
+          editor.commands.setTextSelection(coords.pos);
+        }
+      } catch {
+        // Fall through and operate on the current selection.
+      }
+    }
+
+    setTableMenuPos({ x: e.clientX, y: e.clientY });
   };
 
   if (!editor) return null;
@@ -448,7 +481,153 @@ export default function ParagraphBlock({
         </div>
       </div>
 
-      <EditorContent editor={editor} />
+      <div onContextMenu={handleContextMenu} className="relative">
+        <EditorContent editor={editor} />
+        {tableMenuPos && (
+          <TableContextMenu
+            editor={editor}
+            position={tableMenuPos}
+            onClose={() => setTableMenuPos(null)}
+          />
+        )}
+      </div>
+
+      {/* Selection bubble: format without scrolling back to the toolbar.
+          Appears on any non-empty text selection (including table cells). */}
+      <BubbleMenu
+        editor={editor}
+        options={{ placement: "top", offset: 10 }}
+        shouldShow={({ editor, state }) => {
+          const { from, to } = state.selection;
+          return from !== to && editor.isEditable;
+        }}
+      >
+        <div className="flex max-w-[calc(100vw-2rem)] flex-wrap items-center justify-center gap-0.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl px-1.5 py-1">
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleBold().run()}
+            isActive={editor.isActive("bold")}
+            title="Bold"
+          >
+            <Bold size={15} />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleItalic().run()}
+            isActive={editor.isActive("italic")}
+            title="Italic"
+          >
+            <Italic size={15} />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleUnderline().run()}
+            isActive={editor.isActive("underline")}
+            title="Underline"
+          >
+            <UnderlineIcon size={15} />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleStrike().run()}
+            isActive={editor.isActive("strike")}
+            title="Strikethrough"
+          >
+            <Strikethrough size={15} />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleHighlight().run()}
+            isActive={editor.isActive("highlight")}
+            title="Highlight"
+          >
+            <Highlighter size={15} />
+          </ToolbarButton>
+          <Divider />
+          {showBubbleLinkInput ? (
+            <div className="flex items-center gap-1 pl-1">
+              <input
+                value={bubbleLinkUrl}
+                onChange={(e) => setBubbleLinkUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    applyBubbleLink();
+                  }
+                  if (e.key === "Escape") {
+                    setShowBubbleLinkInput(false);
+                    setBubbleLinkUrl("");
+                  }
+                }}
+                placeholder="https://…"
+                aria-label="Link URL"
+                autoFocus
+                className="w-44 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-900 dark:text-white"
+              />
+              <button
+                onClick={applyBubbleLink}
+                title="Apply link"
+                aria-label="Apply link"
+                className="p-1.5 rounded text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20"
+              >
+                <Check size={15} />
+              </button>
+              <button
+                onClick={() => {
+                  setShowBubbleLinkInput(false);
+                  setBubbleLinkUrl("");
+                }}
+                title="Cancel"
+                aria-label="Cancel"
+                className="p-1.5 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <X size={15} />
+              </button>
+            </div>
+          ) : (
+            <ToolbarButton
+              onClick={() => {
+                if (editor.isActive("link")) {
+                  editor.chain().focus().unsetLink().run();
+                } else {
+                  setBubbleLinkUrl("");
+                  setShowBubbleLinkInput(true);
+                }
+              }}
+              isActive={editor.isActive("link")}
+              title={
+                editor.isActive("link") ? "Remove link" : "Add link"
+              }
+            >
+              <LinkIcon size={15} />
+            </ToolbarButton>
+          )}
+          <Divider />
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setTextAlign("left").run()}
+            isActive={editor.isActive({ textAlign: "left" })}
+            title="Align Left"
+          >
+            <AlignLeft size={15} />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setTextAlign("center").run()}
+            isActive={editor.isActive({ textAlign: "center" })}
+            title="Align Center"
+          >
+            <AlignCenter size={15} />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setTextAlign("right").run()}
+            isActive={editor.isActive({ textAlign: "right" })}
+            title="Align Right"
+          >
+            <AlignRight size={15} />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setTextAlign("justify").run()}
+            isActive={editor.isActive({ textAlign: "justify" })}
+            title="Justify"
+          >
+            <AlignJustify size={15} />
+          </ToolbarButton>
+        </div>
+      </BubbleMenu>
     </div>
   );
 }

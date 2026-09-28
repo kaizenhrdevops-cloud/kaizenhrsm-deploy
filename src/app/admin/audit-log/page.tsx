@@ -26,11 +26,11 @@ export default async function AuditLogPage(props: Props) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, status")
     .eq("id", user.id)
     .single();
 
-  if (profile?.role !== "super_admin") {
+  if (profile?.role !== "super_admin" || profile?.status !== "active") {
     redirect("/admin/dashboard");
   }
 

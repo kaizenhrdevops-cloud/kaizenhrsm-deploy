@@ -55,19 +55,20 @@ free quota) and deletes `admin_audit_log` rows older than
 `audit_log_retention_days` (default **30** — keep it low, Supabase free
 is 500MB).
 
-Vercel: Project Settings > Cron, or use cron-job.org (Supabase free
-projects pause when idle — a hourly ping also keeps it awake).
+Vercel: hourly cron is wired via `vercel.json` (`/api/cron/process-newsletter`
+with `Authorization: Bearer $CRON_SECRET` — set `CRON_SECRET` in env).
+Fallback/keep-alive: cron-job.org hourly ping (Supabase free projects pause
+when idle — an hourly ping also keeps it awake).
 
 ## Deploy (Vercel free)
 
 1. Push to GitHub, Import in Vercel.
 2. Add all `.env.example` vars (production values, `NEXT_PUBLIC_SITE_URL=https://<domain>`).
 3. `Framework: Next.js`, Build: `next build`. No custom server.
-4. Add the hourly cron above.
+4. Cron runs hourly via `vercel.json` (confirm it appears under Project Settings > Cron after first deploy; otherwise use cron-job.org).
 
-Note: `npm run dev` currently uses `node server.js` (custom server).
-Planned cleanup (left for last on purpose): switch scripts to
-`next dev` / `next start` and delete `server.js`.
+Note: standard `next dev` / `next start` — no custom server (Vercel
+ignores custom servers, so local now matches production).
 
 ## Free-tier survival rules
 
@@ -75,7 +76,7 @@ Planned cleanup (left for last on purpose): switch scripts to
   sitemap hourly). Don't add per-request DB reads to hot paths.
 - `getPublicSettings()` is `cache()`d per request — call it freely,
   it hits the DB once.
-- Newsletter: 25/run max, Resend 100/day. Big lists drain over days.
+- Newsletter: 10/tick max, Resend 100/day. Big lists drain over days.
 - Keep `audit_log_retention_days` at 30. Don't `select("*")` on big
   tables — select only needed columns.
 - Images: use `next/image` (auto WebP). Don't commit multi-MB PNGs to
@@ -83,6 +84,6 @@ Planned cleanup (left for last on purpose): switch scripts to
 
 ## Scripts
 
-- `npm run dev` — dev server (custom `server.js`, port 3000)
+- `npm run dev` — dev server (port 3000)
 - `npm run build` / `npm start` — production build / serve
 - `npm run lint` — eslint (build currently ignores lint; TS errors fail the build)

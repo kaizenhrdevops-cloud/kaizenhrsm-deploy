@@ -36,7 +36,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     const { data: posts } = await supabase
       .from("posts")
-      .select("slug, updated_at, published_at")
+      .select("slug, category, updated_at, published_at")
       .eq("status", "published")
       .in("category", ["blog", "development"])
       .limit(500);
@@ -44,7 +44,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const postEntries: MetadataRoute.Sitemap = (posts || [])
       .filter((p) => p.slug)
       .map((p) => ({
-        url: `${SITE_URL}/resources/blog-articles/${p.slug}`,
+        // Canonical home differs per category: blog lives under resources,
+        // development updates under company. Mapping everything to the blog
+        // path indexed developments at URLs that 404.
+        url: `${SITE_URL}/${
+          p.category === "development"
+            ? "company/developments"
+            : "resources/blog-articles"
+        }/${p.slug}`,
         lastModified: p.updated_at
           ? new Date(p.updated_at)
           : p.published_at

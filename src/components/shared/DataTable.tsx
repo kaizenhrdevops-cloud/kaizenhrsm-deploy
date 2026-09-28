@@ -32,6 +32,8 @@ type DataTableProps<T> = {
   className?: string;
   headerActions?: React.ReactNode;
   filterControls?: React.ReactNode;
+  /** Stable row identity. Defaults to item.id (falls back to index). */
+  rowKey?: (item: T, index: number) => React.Key;
 };
 
 export default function DataTable<T extends Record<string, any>>({
@@ -48,6 +50,7 @@ export default function DataTable<T extends Record<string, any>>({
   className = "",
   headerActions,
   filterControls,
+  rowKey,
 }: DataTableProps<T>) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortConfig, setSortConfig] = useState<{
@@ -207,7 +210,7 @@ export default function DataTable<T extends Record<string, any>>({
               ) : (
                 paginatedData.map((item, index) => (
                   <tr
-                    key={index}
+                    key={rowKey ? rowKey(item, index) : (item.id ?? index)}
                     className={`transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50 ${
                       onRowClick ? "cursor-pointer" : ""
                     }`}
@@ -222,9 +225,9 @@ export default function DataTable<T extends Record<string, any>>({
                       >
                         {column.render
                           ? column.render(item)
-                          : item[column.key] || (
+                          : (item[column.key] ?? (
                               <span className="text-slate-400">-</span>
-                            )}
+                            ))}
                       </td>
                     ))}
 

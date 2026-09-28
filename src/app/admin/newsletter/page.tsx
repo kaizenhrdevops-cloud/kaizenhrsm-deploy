@@ -1,25 +1,19 @@
 // src/app/admin/newsletter/page.tsx
 import { createClient } from "@/lib/server";
-import { Database } from "@/types/supabase";
 import { redirect } from "next/navigation";
 import CampaignsClient from "./CampaignsClient";
 import { Mail } from "lucide-react";
+import type { CampaignWithDetails } from "@/types/newsletter";
 
-// Define the type for our joined query
-export type CampaignWithDetails =
-  Database["public"]["Tables"]["newsletter_campaigns"]["Row"] & {
-    posts: {
-      title: string | null;
-    } | null;
-    profiles: {
-      full_name: string | null;
-    } | null;
-  };
+// Server caps the initial payload; the table still searches/sorts/paginates
+// client-side within the window. Campaign rows grow one-per-send, so this
+// bound is generous — and the exact count keeps the UI honest.
+const LIST_LIMIT = 500;
 
 export default async function NewsletterCampaignsPage() {
   const supabase = await createClient();
 
-  // 1. Check user and role
+  // 1. Check user, role, and active status
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -29,12 +23,12 @@ export default async function NewsletterCampaignsPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, status")
     .eq("id", user.id)
     .single();
 
   // Only super admins can view this page
-  if (profile?.role !== "super_admin") {
+  if (profile?.role !== "super_admin" || profile?.status !== "active") {
     return (
       <div className="p-8 text-center">
         <h1 className="text-xl font-bold">Access Denied</h1>
@@ -43,17 +37,23 @@ export default async function NewsletterCampaignsPage() {
     );
   }
 
-  // 2. Fetch all campaigns with post title and author name
-  const { data: campaigns, error } = await supabase
-    .from("newsletter_campaigns")
-    .select(
+  // 2. Fetch recent campaigns with post title and author name (+ exact count)
+  const [{ data: campaigns, error }, { count: totalCount }] = await Promise.all([
+    supabase
+      .from("newsletter_campaigns")
+      .select(
+        `
+        *,
+        posts ( title, slug, category ),
+        profiles ( full_name )
       `
-      *,
-      posts ( title ),
-      profiles ( full_name )
-    `
-    )
-    .order("created_at", { ascending: false });
+      )
+      .order("created_at", { ascending: false })
+      .limit(LIST_LIMIT),
+    supabase
+      .from("newsletter_campaigns")
+      .select("*", { count: "exact", head: true }),
+  ]);
 
   if (error) {
     console.error("Error fetching campaigns:", error);
@@ -64,16 +64,18 @@ export default async function NewsletterCampaignsPage() {
     );
   }
 
-  // --- ✅ ADDED: Calculate stats on the server ---
+  const rows = (campaigns || []) as CampaignWithDetails[];
+
+  // --- Calculate stats on the server ---
   let totalSent = 0;
   let totalFailed = 0;
-  campaigns.forEach((campaign) => {
+  rows.forEach((campaign) => {
     totalSent += campaign.sent_count || 0; // Use the correct column
     totalFailed += campaign.total_failed || 0; // Use the correct column
   });
 
   const stats = {
-    totalCampaigns: campaigns.length,
+    totalCampaigns: totalCount ?? rows.length,
     totalSent,
     totalFailed,
   };
@@ -90,7 +92,7 @@ export default async function NewsletterCampaignsPage() {
         </p>
       </div>
 
-      {campaigns.length === 0 ? (
+      {rows.length === 0 ? (
         <div className="p-10 text-center bg-white border border-gray-200 rounded-lg dark:bg-gray-800 dark:border-gray-700">
           <Mail className="w-12 h-12 mx-auto mb-4 text-gray-400" />
           <h3 className="mb-2 text-lg font-semibold text-gray-800 dark:text-white">
@@ -103,8 +105,9 @@ export default async function NewsletterCampaignsPage() {
         </div>
       ) : (
         <CampaignsClient
-          campaigns={campaigns as CampaignWithDetails[]}
-          stats={stats} // Pass stats to the client
+          campaigns={rows}
+          stats={stats}
+          capped={rows.length >= LIST_LIMIT}
         />
       )}
     </div>

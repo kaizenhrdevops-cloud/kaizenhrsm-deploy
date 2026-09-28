@@ -9,6 +9,7 @@ export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [shake, setShake] = useState(false);
 
@@ -24,6 +25,13 @@ export default function LoginForm() {
       triggerError("Your account has been suspended. Contact admin.");
     } else if (errorType === "inactive") {
       triggerError("Your account is currently inactive.");
+    } else if (errorType === "invalid_link" || errorType === "expired_link") {
+      triggerError(
+        "That password link is invalid or expired. Please request a new one."
+      );
+    }
+    if (searchParams.get("reset") === "success") {
+      setNotice("Password updated. Please sign in with your new password.");
     }
   }, [searchParams]);
 
@@ -37,6 +45,7 @@ export default function LoginForm() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setNotice(null);
     setIsLoading(true);
 
     try {
@@ -59,24 +68,25 @@ export default function LoginForm() {
         return;
       }
 
-      // Check profile status
+      // Check profile status. Deny when the profile is missing/blocked —
+      // never let a session without a valid active profile through to the
+      // dashboard (previously a null profile fell through to login).
       if (data.user) {
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from("profiles")
           .select("status")
           .eq("id", data.user.id)
           .single();
 
-        if (profile?.status === "suspended") {
+        if (profileError || !profile || profile.status !== "active") {
           await supabase.auth.signOut();
-          triggerError("Your account has been suspended. Contact admin.");
-          setIsLoading(false);
-          return;
-        }
-
-        if (profile?.status === "inactive") {
-          await supabase.auth.signOut();
-          triggerError("Your account is inactive. Contact admin.");
+          triggerError(
+            profile?.status === "suspended"
+              ? "Your account has been suspended. Contact admin."
+              : profile?.status === "inactive"
+                ? "Your account is inactive. Contact admin."
+                : "Your account is not set up. Contact admin."
+          );
           setIsLoading(false);
           return;
         }
@@ -171,6 +181,21 @@ export default function LoginForm() {
             >
               <AlertCircle size={18} className="mt-0.5 flex-shrink-0" />
               <span>{error}</span>
+            </div>
+          )}
+
+          {/* Success notice (e.g. after a password reset) */}
+          {notice && !error && (
+            <div
+              className="
+                mt-4 p-4 rounded-lg
+                bg-green-950/30 border border-green-600
+                text-green-200 flex gap-3 text-sm
+                animate-fadeInError
+              "
+            >
+              <AlertCircle size={18} className="mt-0.5 flex-shrink-0" />
+              <span>{notice}</span>
             </div>
           )}
         </div>

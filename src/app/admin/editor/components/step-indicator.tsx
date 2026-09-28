@@ -8,6 +8,9 @@ type StepIndicatorProps = {
   totalSteps: number;
   steps: string[];
   setStep: (step: number) => void;
+  // Furthest step the user has reached — every step up to here is
+  // clickable (visited), so an accidental jump to Step 1 never traps them.
+  maxReachableStep?: number;
 };
 
 export default function StepIndicator({
@@ -15,8 +18,10 @@ export default function StepIndicator({
   steps,
   setStep,
   totalSteps,
+  maxReachableStep,
 }: StepIndicatorProps) {
   const progressPercentage = ((currentStep - 1) / (totalSteps - 1)) * 100;
+  const reachable = maxReachableStep ?? currentStep;
 
   return (
     <div className="w-full">
@@ -45,9 +50,13 @@ export default function StepIndicator({
         <div className="relative flex justify-between">
           {steps.map((label, index) => {
             const stepNumber = index + 1;
-            const isCompleted = stepNumber < currentStep;
             const isCurrent = stepNumber === currentStep;
-            const isClickable = stepNumber < currentStep;
+            // Behind us, or visited before (reachable even when ahead).
+            const isVisited =
+              stepNumber < currentStep ||
+              (stepNumber <= reachable && !isCurrent);
+            const isClickable =
+              stepNumber <= reachable && stepNumber !== currentStep;
 
             return (
               <div key={label} className="flex flex-col items-center">
@@ -55,11 +64,18 @@ export default function StepIndicator({
                 <button
                   onClick={() => isClickable && setStep(stepNumber)}
                   disabled={!isClickable}
+                  title={
+                    isClickable
+                      ? `Go to step ${stepNumber}: ${label}`
+                      : isCurrent
+                        ? `Current step: ${label}`
+                        : `Reach step ${stepNumber} by continuing forward`
+                  }
                   className={`
                     relative z-10 flex items-center justify-center w-10 h-10 rounded-full
                     transition-all duration-300 ease-out
                     ${
-                      isCompleted
+                      isVisited
                         ? "bg-blue-600 dark:bg-blue-500 text-white cursor-pointer hover:scale-110 hover:shadow-lg"
                         : isCurrent
                           ? "bg-blue-600 dark:bg-blue-500 text-white shadow-lg shadow-blue-500/50 scale-110"
@@ -67,7 +83,7 @@ export default function StepIndicator({
                     }
                   `}
                 >
-                  {isCompleted ? (
+                  {isVisited ? (
                     <Check size={18} strokeWidth={3} />
                   ) : (
                     <span className="text-sm font-semibold">{stepNumber}</span>
@@ -87,7 +103,7 @@ export default function StepIndicator({
                       ${
                         isCurrent
                           ? "text-blue-600 dark:text-blue-400"
-                          : isCompleted
+                          : isVisited
                             ? "text-gray-700 dark:text-gray-300"
                             : "text-gray-400 dark:text-gray-500"
                       }

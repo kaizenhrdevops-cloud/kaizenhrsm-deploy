@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      abuse_attempts: {
+        Row: {
+          created_at: string
+          id: string
+          key: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key?: string
+        }
+        Relationships: []
+      }
       admin_audit_log: {
         Row: {
           action: string
@@ -405,7 +423,9 @@ export type Database = {
           id: string
           status: Database["public"]["Enums"]["newsletter_status"]
           unsubscribe_token: string | null
+          verification_expires_at: string | null
           verification_token: string | null
+          verification_used_at: string | null
           verified_at: string | null
         }
         Insert: {
@@ -414,7 +434,9 @@ export type Database = {
           id?: string
           status?: Database["public"]["Enums"]["newsletter_status"]
           unsubscribe_token?: string | null
+          verification_expires_at?: string | null
           verification_token?: string | null
+          verification_used_at?: string | null
           verified_at?: string | null
         }
         Update: {
@@ -423,7 +445,9 @@ export type Database = {
           id?: string
           status?: Database["public"]["Enums"]["newsletter_status"]
           unsubscribe_token?: string | null
+          verification_expires_at?: string | null
           verification_token?: string | null
+          verification_used_at?: string | null
           verified_at?: string | null
         }
         Relationships: []
@@ -752,6 +776,22 @@ export type Database = {
       }
       get_my_role: { Args: never; Returns: string }
       get_remaining_daily_email_quota: { Args: never; Returns: number }
+      publish_post_atomic: {
+        Args: {
+          p_post_id: string
+          p_title: string
+          p_slug: string
+          p_excerpt: string | null
+          p_featured_image: string | null
+          p_featured_image_alt: string | null
+          p_seo_meta_title: string | null
+          p_seo_meta_description: string | null
+          p_seo_og_image: string | null
+          p_blocks: Json
+          p_updated_by: string
+        }
+        Returns: undefined
+      }
       get_user_last_sign_in: { Args: { user_id: string }; Returns: string }
       get_user_status_by_email: { Args: { _email: string }; Returns: string }
     }

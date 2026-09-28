@@ -1,99 +1,29 @@
 // src/app/admin/newsletter/CampaignsClient.tsx
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import DataTable, { type Column } from "@/components/shared/DataTable";
-import { CampaignWithDetails } from "./page";
-import { cn } from "@/lib/utils";
-import { Send, CheckCircle, XCircle, Clock, AlertCircle } from "lucide-react"; // Import icons
-
-// --- ✅ ADDED: Your StatCard component ---
-function StatCard({
-  title,
-  value,
-  icon: Icon,
-}: {
-  title: string;
-  value: string | number;
-  icon: any;
-}) {
-  return (
-    <div className="p-4 bg-white rounded-lg shadow dark:bg-slate-800">
-      <div className="flex items-center">
-        <div className="p-2 mr-3 bg-blue-100 rounded-full dark:bg-blue-900">
-          <Icon className="w-5 h-5 text-blue-600 dark:text-blue-300" />
-        </div>
-        <div>
-          <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-            {title}
-          </p>
-          <p className="text-2xl font-bold text-slate-900 dark:text-white">
-            {value}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-// --- END ---
-
-// Helper to format dates
-const formatDate = (dateString: string | null) => {
-  if (!dateString) return "N/A";
-  return new Date(dateString).toLocaleString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
-
-// Helper to generate a status badge
-const StatusBadge = ({ status }: { status: string | null }) => {
-  const baseClasses =
-    "inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full";
-  let colorClasses = "";
-  let text =
-    (status || "unknown").charAt(0).toUpperCase() +
-    (status || "unknown").slice(1);
-  let icon = <Clock size={12} />;
-
-  switch (status) {
-    case "completed":
-      colorClasses =
-        "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300";
-      icon = <CheckCircle size={12} />;
-      break;
-    case "scheduled":
-      colorClasses =
-        "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300";
-      icon = <Clock size={12} />;
-      break;
-    case "in_progress":
-      colorClasses =
-        "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300";
-      text = "In Progress";
-      break;
-    case "failed":
-      colorClasses =
-        "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300";
-      icon = <AlertCircle size={12} />;
-      break;
-    default:
-      colorClasses =
-        "bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300";
-  }
-  return (
-    <span className={cn(baseClasses, colorClasses)}>
-      {icon} {text}
-    </span>
-  );
-};
+import type { CampaignWithDetails } from "@/types/newsletter";
+import {
+  CampaignStatusBadge,
+  StatCard,
+  formatDateTime,
+} from "@/components/admin/NewsletterBadges";
+import { deleteCampaign } from "@/app/admin/blog/newsletterActions";
+import {
+  AlertCircle,
+  CheckCircle,
+  Loader2,
+  Send,
+  Trash2,
+  XCircle,
+} from "lucide-react";
 
 export default function CampaignsClient({
   campaigns,
   stats, // <-- Receive stats as a prop
+  capped,
 }: {
   campaigns: CampaignWithDetails[];
   stats: {
@@ -101,8 +31,28 @@ export default function CampaignsClient({
     totalSent: number;
     totalFailed: number;
   };
+  capped: boolean;
 }) {
   const router = useRouter();
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
+
+  const handleDelete = async (id: string) => {
+    setPendingDeleteId(id);
+    setActionError(null);
+    try {
+      const result = await deleteCampaign(id);
+      if (!result.success) {
+        setActionError(result.message);
+        return;
+      }
+      router.refresh();
+    } finally {
+      setPendingDeleteId(null);
+      setConfirmingDeleteId(null);
+    }
+  };
 
   const columns: Column<CampaignWithDetails>[] = [
     {
@@ -118,7 +68,7 @@ export default function CampaignsClient({
       key: "status",
       label: "Status",
       sortable: true,
-      render: (campaign) => <StatusBadge status={campaign.status} />,
+      render: (campaign) => <CampaignStatusBadge status={campaign.status} />,
     },
     {
       key: "recipients",
@@ -142,7 +92,7 @@ export default function CampaignsClient({
       label: "Total",
       sortable: true,
       render: (campaign) => (
-        <span className="font-medium">{campaign.total_recipients}</span>
+        <span className="font-medium">{campaign.total_recipients ?? 0}</span>
       ),
     },
     {
@@ -156,9 +106,48 @@ export default function CampaignsClient({
       key: "scheduled_at",
       label: "Scheduled At",
       sortable: true,
-      render: (campaign) => formatDate(campaign.scheduled_at),
+      render: (campaign) => formatDateTime(campaign.scheduled_at),
     },
   ];
+
+  const actions = (campaign: CampaignWithDetails) => {
+    if (campaign.status === "in_progress") return null;
+    if (confirmingDeleteId === campaign.id) {
+      return (
+        <span className="inline-flex items-center gap-2 text-sm">
+          <span className="text-slate-600 dark:text-slate-400">Delete?</span>
+          <button
+            onClick={() => void handleDelete(campaign.id)}
+            disabled={pendingDeleteId !== null}
+            className="font-bold text-red-600 hover:underline disabled:opacity-50"
+          >
+            {pendingDeleteId === campaign.id ? "Deleting…" : "Yes"}
+          </button>
+          <button
+            onClick={() => setConfirmingDeleteId(null)}
+            disabled={pendingDeleteId !== null}
+            className="font-bold text-slate-600 hover:underline dark:text-slate-300 disabled:opacity-50"
+          >
+            No
+          </button>
+        </span>
+      );
+    }
+    return (
+      <button
+        onClick={() => setConfirmingDeleteId(campaign.id)}
+        disabled={pendingDeleteId !== null}
+        title="Delete campaign"
+        className="p-2 text-slate-500 rounded-md hover:bg-red-100 hover:text-red-600 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+      >
+        {pendingDeleteId === campaign.id ? (
+          <Loader2 size={16} className="animate-spin" />
+        ) : (
+          <Trash2 size={16} />
+        )}
+      </button>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -183,6 +172,18 @@ export default function CampaignsClient({
         />
       </div>
       {/* --- END --- */}
+      {actionError && (
+        <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-1.5">
+          <AlertCircle size={15} />
+          {actionError}
+        </p>
+      )}
+      {capped && (
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Showing the {campaigns.length} most recent campaigns of{" "}
+          {stats.totalCampaigns} total.
+        </p>
+      )}
       <DataTable
         data={campaigns}
         columns={columns}
@@ -190,6 +191,7 @@ export default function CampaignsClient({
         searchKeys={["subject", "status"]}
         pagination={true}
         itemsPerPage={15}
+        actions={actions}
         onRowClick={(campaign) => {
           router.push(`/admin/newsletter/${campaign.id}`);
         }}

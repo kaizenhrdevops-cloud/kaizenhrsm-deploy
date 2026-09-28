@@ -382,6 +382,19 @@ export default function Step4Review({
                         article p {
                           margin-bottom: 1rem;
                         }
+                        /* Keep list items tight: inner paragraphs must not
+                           carry the full body margin, and blank lines around
+                           lists collapse like the published renderer. */
+                        article li p {
+                          margin-bottom: 0.25rem;
+                        }
+                        article li p:last-child {
+                          margin-bottom: 0;
+                        }
+                        article p:has(+ ul),
+                        article p:has(+ ol) {
+                          margin-bottom: 0.5rem;
+                        }
                         article th p,
                         article td p {
                           margin-bottom: 0;

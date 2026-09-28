@@ -3,6 +3,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/server";
+import { getServiceClient } from "@/lib/supabase-admin";
 import type { Database } from "@/types/supabase";
 import { nanoid } from "nanoid";
 
@@ -292,70 +293,33 @@ export async function publishPost(postId: string) {
   const draftData = existingPost; // Rename for clarity
   // --- END FIX ---
 
-  const { error: deleteBlocksError } = await supabase
-    .from("post_blocks")
-    .delete()
-    .eq("post_id", postId);
-
-  if (deleteBlocksError) {
-    console.error("Error deleting old blocks:", deleteBlocksError);
-    return { success: false, message: deleteBlocksError.message };
-  }
-
-
-  if (draftData.draft_blocks && Array.isArray(draftData.draft_blocks)) {
-    const blocksToInsert = (draftData.draft_blocks as any[]).map(
-      (block, index) => ({
-        post_id: postId,
-        type: block.type,
-        content: block.content,
-        order_index: index,
-      })
-    );
-
-    if (blocksToInsert.length > 0) {
-      const { error: insertError } = await supabase
-        .from("post_blocks")
-        .insert(blocksToInsert);
-
-      if (insertError) {
-        console.error("Error inserting new blocks:", insertError);
-        return { success: false, message: insertError.message };
-      }
-    }
-  }
-
   const finalTitle = draftData.draft_title || "Untitled Post";
   const finalSlug = draftData.draft_slug || `post-${nanoid(8)}`;
+  const draftBlocks =
+    draftData.draft_blocks && Array.isArray(draftData.draft_blocks)
+      ? draftData.draft_blocks
+      : [];
 
-  const { error } = await supabase
-    .from("posts")
-    .update({
-      status: "published",
-      published_at: new Date().toISOString(),
-      
-      title: finalTitle,
-      slug: finalSlug,
-      excerpt: draftData.draft_excerpt,
-      featured_image: draftData.draft_featured_image,
-      featured_image_alt: draftData.draft_featured_image_alt,
-      seo_meta_title: draftData.draft_seo_meta_title,
-      seo_meta_description: draftData.draft_seo_meta_description,
-      seo_og_image: draftData.draft_seo_og_image,
-      
-      has_unpublished_changes: false,
-      draft_title: null,
-      draft_slug: null,
-      draft_excerpt: null,
-      draft_featured_image: null,
-      draft_featured_image_alt: null,
-      draft_seo_meta_title: null,
-      draft_seo_meta_description: null,
-      draft_seo_og_image: null,
-      draft_blocks: null,
-      updated_by: user.id,
-    })
-    .eq("id", postId);
+  // Atomic swap (single transaction in publish_post_atomic): drop live
+  // blocks, insert draft blocks, flip draft fields to live. The old
+  // three-round-trip version could leave a published post with zero blocks
+  // if the insert or update failed after the delete.
+  // Service client: the RPC is revoked from anon/authenticated by design;
+  // staff authorization already happened in requireStaff above.
+  const supabaseAdmin = getServiceClient();
+  const { error } = await supabaseAdmin.rpc("publish_post_atomic", {
+    p_post_id: postId,
+    p_title: finalTitle,
+    p_slug: finalSlug,
+    p_excerpt: draftData.draft_excerpt,
+    p_featured_image: draftData.draft_featured_image,
+    p_featured_image_alt: draftData.draft_featured_image_alt,
+    p_seo_meta_title: draftData.draft_seo_meta_title,
+    p_seo_meta_description: draftData.draft_seo_meta_description,
+    p_seo_og_image: draftData.draft_seo_og_image,
+    p_blocks: draftBlocks,
+    p_updated_by: user.id,
+  });
 
   if (error) {
     console.error("Error publishing post:", error);

@@ -60,6 +60,60 @@ async function cleanupAuditLogs() {
     console.error("CRON: Error in cleanupAuditLogs:", error);
   }
 }
+
+// Log tables grow with every send/attempt. On Supabase free (500MB) they
+// must be pruned; history older than the window below has no operational
+// use (campaign counters live on newsletter_campaigns).
+const EMAIL_LOG_RETENTION_DAYS = 90;
+const ABUSE_ATTEMPTS_RETENTION_HOURS = 24;
+
+async function cleanupEmailAndAbuseLogs() {
+  const supabase = getServiceClient();
+  try {
+    const emailCutoff = new Date(
+      Date.now() - EMAIL_LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000
+    ).toISOString();
+
+    const [emailLog, sendLog] = await Promise.all([
+      supabase
+        .from("email_send_log")
+        .delete({ count: "exact" })
+        .lt("created_at", emailCutoff),
+      // Only terminal rows — queued/sending rows belong to live campaigns.
+      supabase
+        .from("newsletter_send_log")
+        .delete({ count: "exact" })
+        .in("status", ["sent", "failed", "bounced"])
+        .lt("created_at", emailCutoff),
+    ]);
+
+    if (emailLog.error) {
+      console.error("CRON: Failed to clean email_send_log:", emailLog.error.message);
+    } else {
+      console.log(`CRON: Deleted ${emailLog.count} old email_send_log rows.`);
+    }
+    if (sendLog.error) {
+      console.error("CRON: Failed to clean newsletter_send_log:", sendLog.error.message);
+    } else {
+      console.log(`CRON: Deleted ${sendLog.count} old newsletter_send_log rows.`);
+    }
+
+    const abuseCutoff = new Date(
+      Date.now() - ABUSE_ATTEMPTS_RETENTION_HOURS * 60 * 60 * 1000
+    ).toISOString();
+    const { error: abuseError, count: abuseCount } = await supabase
+      .from("abuse_attempts")
+      .delete({ count: "exact" })
+      .lt("created_at", abuseCutoff);
+    if (abuseError) {
+      console.error("CRON: Failed to clean abuse_attempts:", abuseError.message);
+    } else {
+      console.log(`CRON: Deleted ${abuseCount} old abuse_attempts rows.`);
+    }
+  } catch (error) {
+    console.error("CRON: Error in cleanupEmailAndAbuseLogs:", error);
+  }
+}
 // ---------------------------------
 
 export async function GET(req: NextRequest) {
@@ -75,6 +129,7 @@ export async function GET(req: NextRequest) {
     // We run this *before* or *alongside* the newsletter queue
     // "await" ensures it finishes before we return response
     await cleanupAuditLogs();
+    await cleanupEmailAndAbuseLogs();
 
     // 3. Run Newsletter Queue
     const result = await processNewsletterQueue();

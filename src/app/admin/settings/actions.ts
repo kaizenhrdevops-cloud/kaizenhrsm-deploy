@@ -9,7 +9,8 @@ type SystemSettings = {
   [key: string]: string;
 };
 
-// Helper function to check if current user is super_admin
+// Helper function to check if current user is an ACTIVE super_admin
+// (a suspended super_admin keeps no settings power).
 async function checkSuperAdminAccess(supabase: any) {
   const {
     data: { user },
@@ -21,14 +22,14 @@ async function checkSuperAdminAccess(supabase: any) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, status")
     .eq("id", user.id)
     .single();
 
-  if (profile?.role !== "super_admin") {
+  if (profile?.role !== "super_admin" || profile?.status !== "active") {
     return {
       authorized: false,
-      message: "Access denied. Super admin role required.",
+      message: "Access denied. Active super admin role required.",
       userId: user.id,
     };
   }
