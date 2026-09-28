@@ -55,17 +55,20 @@ free quota) and deletes `admin_audit_log` rows older than
 `audit_log_retention_days` (default **30** — keep it low, Supabase free
 is 500MB).
 
-Vercel: hourly cron is wired via `vercel.json` (`/api/cron/process-newsletter`
+Vercel: `vercel.json` wires a **daily** safety-net cron (`/api/cron/process-newsletter`
 with `Authorization: Bearer $CRON_SECRET` — set `CRON_SECRET` in env).
-Fallback/keep-alive: cron-job.org hourly ping (Supabase free projects pause
-when idle — an hourly ping also keeps it awake).
+Hobby plans reject anything more frequent than once per day, so the real
+hourly drain is cron-job.org (free): hourly GET with the same Authorization
+header. The hourly ping also keeps Supabase free projects awake.
 
 ## Deploy (Vercel free)
 
 1. Push to GitHub, Import in Vercel.
 2. Add all `.env.example` vars (production values, `NEXT_PUBLIC_SITE_URL=https://<domain>`).
 3. `Framework: Next.js`, Build: `next build`. No custom server.
-4. Cron runs hourly via `vercel.json` (confirm it appears under Project Settings > Cron after first deploy; otherwise use cron-job.org).
+4. Cron: daily via `vercel.json` is automatic — confirm it appears under
+   Project Settings > Cron after first deploy. For hourly draining, add the
+   cron-job.org job (Hobby forbids sub-daily Vercel crons).
 
 Note: standard `next dev` / `next start` — no custom server (Vercel
 ignores custom servers, so local now matches production).
