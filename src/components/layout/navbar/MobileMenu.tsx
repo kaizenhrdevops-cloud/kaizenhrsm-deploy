@@ -62,6 +62,7 @@ function MobileSection({
                   key={index}
                   href={item.path}
                   onClick={onNavigate}
+                  prefetch={!/\.pdf$/i.test(item.path)}
                   className="flex items-center space-x-3 p-2.5 text-gray-700 hover:text-blue-700 hover:bg-white rounded-xl transition-all duration-200"
                 >
                   <div className="bg-white p-2 rounded-lg shadow-xs text-blue-500 shrink-0">
@@ -78,6 +79,7 @@ function MobileSection({
                   key={index}
                   href={item.path}
                   onClick={onNavigate}
+                  prefetch={!/\.pdf$/i.test(item.path)}
                   target={item.name === "Brochure" ? "_blank" : "_self"}
                   rel={item.name === "Brochure" ? "noopener noreferrer" : ""}
                   className="flex items-center space-x-3 p-2.5 text-gray-700 hover:text-blue-700 hover:bg-blue-50/50 rounded-xl transition-all duration-200"

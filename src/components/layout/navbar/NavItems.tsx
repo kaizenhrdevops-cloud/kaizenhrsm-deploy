@@ -90,10 +90,14 @@ export function DropdownItem({
   wide?: boolean;
   onNavigate: () => void;
 }) {
+  // File downloads (e.g. the .pdf brochure) must not be prefetched as app
+  // routes — Next would request "<file>?_rsc=" and log a 404.
+  const isFileLink = /\.pdf$/i.test(item.path);
   return (
     <Link
       href={item.path}
       onClick={onNavigate}
+      prefetch={!isFileLink}
       target={item.name === "Brochure" ? "_blank" : "_self"}
       rel={item.name === "Brochure" ? "noopener noreferrer" : ""}
       className={`group block p-4 rounded-xl hover:bg-blue-50/70 transition-all duration-200 border border-transparent hover:border-blue-100/80 hover:shadow-xs ${

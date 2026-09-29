@@ -155,7 +155,7 @@ export const resourcesSubmenus = [
     icon: BookDown, // <-- 1. UPDATED ICON
     name: "Brochure",
     description: "Download our official product brochure.",
-    path: "/Module Brochure Kaizen REV.2.pdf", // <-- 2. UPDATED PATH (points to public folder)
+    path: "/kaizen-hrms-modules-brochure.pdf", // <-- 2. UPDATED PATH (points to public folder)
   },
   {
     icon: CheckSquare,
