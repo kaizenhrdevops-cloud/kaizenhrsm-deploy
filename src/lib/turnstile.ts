@@ -19,7 +19,17 @@ export async function verifyTurnstileToken(token: string): Promise<boolean> {
       }
     );
     const data = await response.json();
-    if (data.success !== true) return false;
+    if (data.success !== true) {
+      // Log Cloudflare's reason server-side (never exposed to clients):
+      // invalid-input-secret, invalid-input-response, timeout-or-duplicate,
+      // hostname-mismatch, etc. This is the fastest way to diagnose setup
+      // mistakes (mismatched key pairs, unlisted domains).
+      console.error(
+        "Turnstile verification failed:",
+        JSON.stringify(data["error-codes"] ?? data)
+      );
+      return false;
+    }
 
     // Bind the token to our own domain (compare without leading www.
     // so apex/www visits don't false-reject). Skipped when the site URL
