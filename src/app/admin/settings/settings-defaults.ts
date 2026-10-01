@@ -68,7 +68,9 @@ export const FACTORY_DEFAULTS: SystemSettings = {
   enable_public_registration: "true",
   admin_notification_email: "kaizenhr.devops@gmail.com",
   email_sender_name: "KaizenHR",
-  email_sender_address: "onboarding@resend.dev",
+  // Fail-loud placeholder, NOT a working address: "example.com" can never
+  // deliver. Set a verified-domain address here or via RESEND_FROM_EMAIL.
+  email_sender_address: "unconfigured-sender@example.com",
   blog_default_author_name: "KaizenHR Team",
 };
 

@@ -47,8 +47,8 @@ Key tables: `posts` + `post_blocks`, `contacts` + `contact_replies`,
 
 ## Cron (required for newsletter + audit cleanup)
 
-Hourly: `GET /api/cron/process-newsletter` with header
-`Authorization: Bearer <CRON_SECRET>`.
+Daily (Vercel) / hourly (cron-job.org): `GET /api/cron/process-newsletter`
+with header `Authorization: Bearer <CRON_SECRET>`.
 
 Each run sends **at most 25 emails** (fits Vercel 10s timeout + Resend
 free quota) and deletes `admin_audit_log` rows older than

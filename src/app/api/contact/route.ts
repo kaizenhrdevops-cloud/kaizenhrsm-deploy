@@ -130,11 +130,19 @@ export async function POST(req: NextRequest) {
       cachedSettings.admin_notification_email ||
       "kaizenhr.devops@gmail.com";
     const senderName = cachedSettings.email_sender_name || "KaizenHR";
-    // Hierarchy: Env Var > DB Setting > Fallback
+    // Hierarchy: Env Var > DB Setting > fail-loud placeholder.
+    // "example.com" can never deliver, so a missing sender fails loudly at
+    // Resend (visible in email_send_log) instead of silently sending from a
+    // test address that only reaches the Resend account owner.
     const senderEmail =
       process.env.RESEND_FROM_EMAIL ||
       cachedSettings.email_sender_address ||
-      "onboarding@resend.dev";
+      "unconfigured-sender@example.com";
+    if (senderEmail === "unconfigured-sender@example.com") {
+      console.warn(
+        "Email sender is not configured. Set RESEND_FROM_EMAIL (env) or email_sender_address (Admin > Settings) to a verified-domain address."
+      );
+    }
     const fromAddress = `${senderName} <${senderEmail}>`;
     // ------------------------
 

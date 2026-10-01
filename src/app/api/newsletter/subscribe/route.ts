@@ -97,11 +97,17 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Determine Sender Details
-    // IMPORTANT: On Resend Free Tier, you MUST send from 'onboarding@resend.dev'
-    // unless you have verified your own domain.
-    // We prioritize the environment variable RESEND_FROM_EMAIL if set.
-    // Otherwise, we fallback to 'onboarding@resend.dev'.
-    const senderEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
+    // Priority: RESEND_FROM_EMAIL env, else the fail-loud placeholder below.
+    // "example.com" can never deliver, so a missing sender fails loudly at
+    // Resend (visible in email_send_log) instead of silently sending from a
+    // test address that only reaches the Resend account owner.
+    const senderEmail =
+      process.env.RESEND_FROM_EMAIL || "unconfigured-sender@example.com";
+    if (senderEmail === "unconfigured-sender@example.com") {
+      console.warn(
+        "Email sender is not configured. Set RESEND_FROM_EMAIL (env) to a verified-domain address."
+      );
+    }
     const senderName = settings.email_sender_name || "KaizenHR";
     const fromAddress = `${senderName} <${senderEmail}>`;
 

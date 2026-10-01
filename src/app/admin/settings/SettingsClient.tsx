@@ -261,8 +261,8 @@ export default function SettingsClient({
                   onChange={(v) =>
                     handleChange("email_sender_address", v)
                   }
-                  placeholder="onboarding@resend.dev"
-                  hint="Must be 'onboarding@resend.dev' (Free) or a verified domain email (Paid). Falls back to .env if empty."
+                  placeholder="inquiry@kaizenhrms.com"
+                  hint="Must be an address on your verified Resend domain. Env RESEND_FROM_EMAIL wins when set. Never leave the unconfigured-sender@example.com placeholder — sends will fail."
                 />
               </>
             )}

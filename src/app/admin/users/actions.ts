@@ -345,8 +345,16 @@ export async function resetUserPassword(email: string) {
   // Deliver the link via Resend (Supabase does not send it for us).
   try {
     const settings = await getPublicSettings();
+    // Fail-loud placeholder: "example.com" can never deliver, so a missing
+    // sender fails loudly at Resend instead of silently sending from a test
+    // address that only reaches the Resend account owner.
     const senderEmail =
-      process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
+      process.env.RESEND_FROM_EMAIL || "unconfigured-sender@example.com";
+    if (senderEmail === "unconfigured-sender@example.com") {
+      console.warn(
+        "Email sender is not configured. Set RESEND_FROM_EMAIL (env) to a verified-domain address."
+      );
+    }
     const senderName = settings.email_sender_name || "KaizenHR";
     const resend = new Resend(process.env.RESEND_API_KEY);
     const html = await render(
