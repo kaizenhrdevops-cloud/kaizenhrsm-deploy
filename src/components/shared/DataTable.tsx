@@ -28,6 +28,7 @@ type DataTableProps<T> = {
   onRowClick?: (item: T) => void;
   actions?: (item: T) => React.ReactNode;
   actionsLabel?: string;
+  actionsAlign?: "right" | "center" | "left";
   emptyMessage?: string;
   className?: string;
   headerActions?: React.ReactNode;
@@ -46,6 +47,7 @@ export default function DataTable<T extends Record<string, any>>({
   onRowClick,
   actions,
   actionsLabel = "Actions",
+  actionsAlign = "right",
   emptyMessage = "No data available",
   className = "",
   headerActions,
@@ -187,7 +189,13 @@ export default function DataTable<T extends Record<string, any>>({
                 {actions && (
                   <th
                     scope="col"
-                    className="px-6 py-4 font-medium text-right whitespace-nowrap"
+                    className={`px-6 py-4 font-medium whitespace-nowrap ${
+                      actionsAlign === "center"
+                        ? "text-center"
+                        : actionsAlign === "left"
+                        ? "text-left"
+                        : "text-right"
+                    }`}
                   >
                     <span>{actionsLabel}</span>
                   </th>
@@ -234,7 +242,13 @@ export default function DataTable<T extends Record<string, any>>({
                     {actions && (
                       <td className="px-6 py-4">
                         <div
-                          className="flex items-center justify-end gap-2"
+                          className={`flex items-center gap-2 ${
+                            actionsAlign === "center"
+                              ? "justify-center"
+                              : actionsAlign === "left"
+                              ? "justify-start"
+                              : "justify-end"
+                          }`}
                           onClick={(e) => e.stopPropagation()}
                         >
                           {actions(item)}

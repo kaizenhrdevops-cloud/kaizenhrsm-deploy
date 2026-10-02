@@ -6,6 +6,7 @@ import type { Database } from "@/types/supabase";
 import { getServiceClient } from "@/lib/supabase-admin";
 import { Resend } from "resend";
 import { postNewsletterTemplate } from "@/lib/email-templates/post-newsletter-template";
+import { formatDateMY } from "@/lib/format";
 
 // Initialize Resend
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -278,7 +279,10 @@ export async function sendTestNewsletter(postId: string, testEmail: string) {
   }
 }
 
-export async function scheduleNewsletter(postId: string) {
+export async function scheduleNewsletter(
+  postId: string,
+  scheduledAt?: string | null
+) {
   const { supabase, user } = await requireNewsletterAdmin();
   const supabaseAdmin = await createAdminClient();
 
@@ -323,6 +327,15 @@ export async function scheduleNewsletter(postId: string) {
       };
     }
 
+    // 5. --- Calculate Scheduled Timestamp ---
+    let targetSchedule = new Date().toISOString();
+    if (scheduledAt) {
+      const parsed = new Date(scheduledAt);
+      if (!isNaN(parsed.getTime())) {
+        targetSchedule = parsed.toISOString();
+      }
+    }
+
     // 5. --- Create Campaign Log ---
     const { data: campaign, error: campaignError } = await supabaseAdmin
       .from("newsletter_campaigns")
@@ -333,7 +346,7 @@ export async function scheduleNewsletter(postId: string) {
         sent_by: user.id,
         total_recipients: subscribers.length,
         status: "scheduled",
-        scheduled_at: new Date().toISOString(),
+        scheduled_at: targetSchedule,
         queued_count: subscribers.length,
         sent_count: 0,
       })
@@ -395,6 +408,17 @@ export async function scheduleNewsletter(postId: string) {
       throw new Error(`Failed to mark post as scheduled: ${stampError.message}`);
     }
 
+    await auditCampaignAction(
+      supabaseAdmin,
+      user.id,
+      "campaign.schedule",
+      campaign.id,
+      `Scheduled campaign "${post.title || "Untitled"}" for ${subscribers.length} subscribers (scheduled for ${formatDateMY(targetSchedule)})`
+    );
+
+    revalidatePath("/admin/newsletter");
+    revalidatePath("/admin/blog");
+
     return {
       success: true,
       message: `Campaign scheduled for ${subscribers.length} subscribers!`,
@@ -427,7 +451,8 @@ export async function processNewsletterQueue() {
       return { success: true, message: "No quota remaining." };
     }
 
-    // 2. --- Find a Campaign to Process ---
+    // 2. --- Find a Campaign to Process (only if scheduled time has arrived) ---
+    const nowIso = new Date().toISOString();
     const { data: activeCampaign, error: activeCampaignError } =
       await supabaseAdmin
         .from("newsletter_campaigns")
@@ -435,6 +460,7 @@ export async function processNewsletterQueue() {
           "id, post_id, subject, preview_text, status, scheduled_at, total_recipients, sent_count, queued_count, total_failed"
         )
         .in("status", ["scheduled", "in_progress"])
+        .lte("scheduled_at", nowIso)
         .order("scheduled_at", { ascending: true })
         .limit(1)
         .single();
@@ -726,7 +752,7 @@ function friendlyResendError(message: string): string {
 
 // --- Campaign lifecycle actions (used by /admin/newsletter) ---
 
-type CampaignActionResult = { success: boolean; message: string };
+export type CampaignActionResult = { success: boolean; message: string };
 
 /**
  * Retry a FAILED campaign: flip its failed rows back to queued and
@@ -936,5 +962,129 @@ export async function deleteCampaign(
   } catch (error: any) {
     console.error("Error deleting campaign:", error?.message);
     return { success: false, message: error?.message || "Delete failed." };
+  }
+}
+
+/**
+ * Reschedule a SCHEDULED campaign to a new date and time.
+ */
+export async function updateCampaignSchedule(
+  campaignId: string,
+  newScheduledAt: string
+): Promise<CampaignActionResult> {
+  const { user } = await requireNewsletterAdmin();
+  const supabaseAdmin = await createAdminClient();
+
+  try {
+    const { data: campaign, error } = await supabaseAdmin
+      .from("newsletter_campaigns")
+      .select("id, status, subject, post_id")
+      .eq("id", campaignId)
+      .single();
+
+    if (error || !campaign) {
+      return { success: false, message: "Campaign not found." };
+    }
+    if (campaign.status !== "scheduled") {
+      return {
+        success: false,
+        message: `Only scheduled campaigns can be rescheduled (current status is ${campaign.status}).`,
+      };
+    }
+
+    const parsed = new Date(newScheduledAt);
+    if (isNaN(parsed.getTime())) {
+      return { success: false, message: "Invalid scheduled date/time." };
+    }
+    const isoDate = parsed.toISOString();
+
+    const { error: updateError } = await supabaseAdmin
+      .from("newsletter_campaigns")
+      .update({ scheduled_at: isoDate })
+      .eq("id", campaignId);
+
+    if (updateError) {
+      return {
+        success: false,
+        message: `Could not update schedule: ${updateError.message}`,
+      };
+    }
+
+    await auditCampaignAction(
+      supabaseAdmin,
+      user.id,
+      "campaign.reschedule",
+      campaignId,
+      `Rescheduled campaign "${campaign.subject}" to ${formatDateMY(isoDate)}`
+    );
+
+    revalidatePath("/admin/newsletter");
+    revalidatePath(`/admin/newsletter/${campaignId}`);
+    return {
+      success: true,
+      message: `Campaign rescheduled to ${formatDateMY(isoDate)}.`,
+    };
+  } catch (err: any) {
+    console.error("Error rescheduling campaign:", err?.message);
+    return { success: false, message: err?.message || "Reschedule failed." };
+  }
+}
+
+/**
+ * Send a SCHEDULED campaign immediately without waiting for scheduled time.
+ */
+export async function sendCampaignNow(
+  campaignId: string
+): Promise<CampaignActionResult> {
+  const { user } = await requireNewsletterAdmin();
+  const supabaseAdmin = await createAdminClient();
+
+  try {
+    const { data: campaign, error } = await supabaseAdmin
+      .from("newsletter_campaigns")
+      .select("id, status, subject")
+      .eq("id", campaignId)
+      .single();
+
+    if (error || !campaign) {
+      return { success: false, message: "Campaign not found." };
+    }
+    if (campaign.status !== "scheduled") {
+      return {
+        success: false,
+        message: `Only scheduled campaigns can be triggered now (current status is ${campaign.status}).`,
+      };
+    }
+
+    const nowIso = new Date().toISOString();
+    const { error: updateError } = await supabaseAdmin
+      .from("newsletter_campaigns")
+      .update({ scheduled_at: nowIso })
+      .eq("id", campaignId);
+
+    if (updateError) {
+      return {
+        success: false,
+        message: `Could not update campaign: ${updateError.message}`,
+      };
+    }
+
+    await auditCampaignAction(
+      supabaseAdmin,
+      user.id,
+      "campaign.send_now",
+      campaignId,
+      `Triggered immediate send for campaign "${campaign.subject}"`
+    );
+
+    // Trigger process queue in background so sending starts
+    void processNewsletterQueue();
+
+    revalidatePath("/admin/newsletter");
+    revalidatePath(`/admin/newsletter/${campaignId}`);
+    return { success: true, message: "Campaign delivery started!" };
+  } catch (err: any) {
+    console.error("Error sending campaign now:", err?.message);
+    return { success: false, message: err?.message || "Send failed." };
   }
 }

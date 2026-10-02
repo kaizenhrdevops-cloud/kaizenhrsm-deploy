@@ -11,6 +11,7 @@ import {
   formatDateTime,
 } from "@/components/admin/NewsletterBadges";
 import { deleteCampaign } from "@/app/admin/blog/newsletterActions";
+import RescheduleCampaignModal from "@/components/admin/RescheduleCampaignModal";
 import {
   AlertCircle,
   CheckCircle,
@@ -18,6 +19,7 @@ import {
   Send,
   Trash2,
   XCircle,
+  CalendarClock,
 } from "lucide-react";
 
 export default function CampaignsClient({
@@ -37,6 +39,7 @@ export default function CampaignsClient({
   const [actionError, setActionError] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
+  const [rescheduleTarget, setRescheduleTarget] = useState<CampaignWithDetails | null>(null);
 
   const handleDelete = async (id: string) => {
     setPendingDeleteId(id);
@@ -119,14 +122,14 @@ export default function CampaignsClient({
           <button
             onClick={() => void handleDelete(campaign.id)}
             disabled={pendingDeleteId !== null}
-            className="font-bold text-red-600 hover:underline disabled:opacity-50"
+            className="font-bold text-red-600 hover:underline disabled:opacity-50 cursor-pointer"
           >
             {pendingDeleteId === campaign.id ? "Deleting…" : "Yes"}
           </button>
           <button
             onClick={() => setConfirmingDeleteId(null)}
             disabled={pendingDeleteId !== null}
-            className="font-bold text-slate-600 hover:underline dark:text-slate-300 disabled:opacity-50"
+            className="font-bold text-slate-600 hover:underline dark:text-slate-300 disabled:opacity-50 cursor-pointer"
           >
             No
           </button>
@@ -134,26 +137,35 @@ export default function CampaignsClient({
       );
     }
     return (
-      <button
-        onClick={() => setConfirmingDeleteId(campaign.id)}
-        disabled={pendingDeleteId !== null}
-        title="Delete campaign"
-        className="p-2 text-slate-500 rounded-md hover:bg-red-100 hover:text-red-600 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
-      >
-        {pendingDeleteId === campaign.id ? (
-          <Loader2 size={16} className="animate-spin" />
-        ) : (
-          <Trash2 size={16} />
+      <div className="inline-flex items-center justify-center gap-1">
+        {(campaign.status === "scheduled" || campaign.status === "draft") && (
+          <button
+            onClick={() => setRescheduleTarget(campaign)}
+            title="Change scheduled time or send now"
+            className="p-2 text-blue-600 dark:text-blue-400 rounded-md hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+          >
+            <CalendarClock size={16} />
+          </button>
         )}
-      </button>
+        <button
+          onClick={() => setConfirmingDeleteId(campaign.id)}
+          disabled={pendingDeleteId !== null}
+          title="Delete campaign"
+          className="p-2 text-slate-500 rounded-md hover:bg-red-100 hover:text-red-600 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 cursor-pointer"
+        >
+          {pendingDeleteId === campaign.id ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : (
+            <Trash2 size={16} />
+          )}
+        </button>
+      </div>
     );
   };
 
   return (
     <div className="space-y-6">
-      {" "}
-      {/* Added wrapper */}
-      {/* --- ✅ ADDED: Your Stat Cards Grid --- */}
+      {/* Stat Cards Grid */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <StatCard
           title="Total Campaigns"
@@ -171,7 +183,7 @@ export default function CampaignsClient({
           icon={XCircle}
         />
       </div>
-      {/* --- END --- */}
+
       {actionError && (
         <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-1.5">
           <AlertCircle size={15} />
@@ -191,12 +203,24 @@ export default function CampaignsClient({
         searchKeys={["subject", "status"]}
         pagination={true}
         itemsPerPage={15}
+        actionsAlign="center"
         actions={actions}
         onRowClick={(campaign) => {
           router.push(`/admin/newsletter/${campaign.id}`);
         }}
         emptyMessage="No campaigns found."
       />
+
+      <RescheduleCampaignModal
+        isOpen={rescheduleTarget !== null}
+        onClose={() => setRescheduleTarget(null)}
+        campaign={rescheduleTarget}
+        onSuccess={() => {
+          setRescheduleTarget(null);
+          router.refresh();
+        }}
+      />
     </div>
   );
 }
+

@@ -289,6 +289,7 @@ export default function PostsClient({ posts }: { posts: PostWithAuthor[] }) {
         filterControls={filterControls}
         pagination={true}
         itemsPerPage={10}
+        actionsAlign="center"
         headerActions={
           <div className="flex gap-2">
             <button
@@ -311,7 +312,7 @@ export default function PostsClient({ posts }: { posts: PostWithAuthor[] }) {
         }
         actions={(post) => (
           // --- 3. WRAP THE "Send" BUTTON IN THE ROLE CHECK ---
-          <div className="flex items-center gap-1">
+          <div className="inline-flex items-center justify-center gap-1">
             <button
               onClick={(e) => {
                 e.stopPropagation();
