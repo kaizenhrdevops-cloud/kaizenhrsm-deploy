@@ -102,23 +102,29 @@ export default function ContactsPage() {
     }
   };
 
-  const fetchContacts = async () => {
-    setLoading(true);
+  const fetchContacts = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const response = await fetch("/api/admin/contacts");
       const data = await response.json();
 
       if (response.ok) {
-        setContacts(data.contacts || []);
+        const contactList = data.contacts || [];
+        setContacts(contactList);
+        // Sync selected contact if modal is open
+        setSelectedContact((prev) => {
+          if (!prev) return null;
+          return contactList.find((c: ContactSubmission) => c.id === prev.id) || prev;
+        });
       } else {
         console.error("Failed to fetch contacts:", data.error);
-        showToast("Failed to load contacts", "error");
+        if (!silent) showToast("Failed to load contacts", "error");
       }
     } catch (error) {
       console.error("Error fetching contacts:", error);
-      showToast("An unexpected error occurred", "error");
+      if (!silent) showToast("An unexpected error occurred", "error");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -340,7 +346,7 @@ export default function ContactsPage() {
     </div>
   );
 
-  if (loading) {
+  if (loading && contacts.length === 0) {
     return <LoadingSpinner />;
   }
 
@@ -419,14 +425,14 @@ export default function ContactsPage() {
         contact={selectedContact as any}
         userRole={userRole}
         onStatusChange={(id, status) => {
-          setContacts(
-            contacts.map((c) =>
+          setContacts((prev) =>
+            prev.map((c) =>
               c.id === id ? { ...c, status: status as any } : c
             )
           );
-          fetchContacts();
+          fetchContacts(true);
         }}
-        onRefresh={fetchContacts}
+        onRefresh={() => fetchContacts(true)}
       />
 
       {/* --- NEW: Delete Confirmation Modal --- */}

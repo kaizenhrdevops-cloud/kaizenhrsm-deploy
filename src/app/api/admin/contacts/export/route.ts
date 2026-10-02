@@ -94,6 +94,20 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Log export action
+    try {
+      await supabaseAdmin.from("admin_audit_log").insert({
+        admin_id: authData.user.id,
+        action: "contact.export",
+        details: {
+          message: `Exported ${contacts?.length || 0} contacts to CSV`,
+          exported_count: contacts?.length || 0,
+        },
+      });
+    } catch (auditErr) {
+      console.error("Audit log for export failed:", auditErr);
+    }
+
     // Convert to CSV
     const csv = convertToCSV(contacts || []);
 

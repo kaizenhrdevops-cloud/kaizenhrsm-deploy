@@ -65,8 +65,13 @@ export default function AuditLogTable({
     router.replace("/admin/audit-log");
   };
 
-  const formatDetails = (details: any) => {
+  // Detail Modal State
+  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+
+  const getPrimaryMessage = (details: any) => {
     if (!details) return "-";
+    if (typeof details === "string") return details;
+    if (details.message) return String(details.message);
     try {
       return JSON.stringify(details).replace(/[{}"]/g, " ").trim();
     } catch {
@@ -133,7 +138,7 @@ export default function AuditLogTable({
           {(dateFrom || dateTo || searchTerm) && (
             <button
               onClick={clearFilters}
-              className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+              className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors cursor-pointer"
               title="Clear Filters"
             >
               <X size={18} />
@@ -149,7 +154,7 @@ export default function AuditLogTable({
             <tr>
               <th className="px-6 py-3">Action</th>
               <th className="px-6 py-3">Admin</th>
-              <th className="px-6 py-3">Details</th>
+              <th className="px-6 py-3 min-w-[280px]">Details</th>
               <th className="px-6 py-3">Date</th>
             </tr>
           </thead>
@@ -182,13 +187,21 @@ export default function AuditLogTable({
                       {log.admin?.full_name || log.admin?.email || "System"}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-mono text-xs">
-                    <span
-                      className="line-clamp-1"
-                      title={JSON.stringify(log.details, null, 2)}
-                    >
-                      {formatDetails(log.details)}
-                    </span>
+                  <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
+                    <div className="max-w-md flex items-center gap-2">
+                      <div className="overflow-x-auto whitespace-nowrap scrollbar-thin py-1 font-mono text-xs text-slate-700 dark:text-slate-300 flex-1">
+                        {getPrimaryMessage(log.details)}
+                      </div>
+                      {log.details && typeof log.details === "object" && (
+                        <button
+                          onClick={() => setSelectedLog(log)}
+                          className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 shrink-0 font-sans font-medium px-2 py-0.5 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
+                          title="View complete payload"
+                        >
+                          Details
+                        </button>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 text-slate-500 dark:text-slate-400 whitespace-nowrap">
                     {new Date(log.created_at).toLocaleString("en-US", {
@@ -229,6 +242,64 @@ export default function AuditLogTable({
             Next
             <ChevronRight size={16} />
           </button>
+        </div>
+      )}
+
+      {/* Detail Modal */}
+      {selectedLog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div
+            className="relative w-full max-w-xl bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col max-h-[85vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">
+                  {selectedLog.action}
+                </span>
+                <span className="text-xs text-slate-500">
+                  {new Date(selectedLog.created_at).toLocaleString()}
+                </span>
+              </div>
+              <button
+                onClick={() => setSelectedLog(null)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4 overflow-y-auto">
+              <div>
+                <p className="text-xs text-slate-500 font-medium uppercase mb-1">
+                  Admin
+                </p>
+                <p className="text-sm text-slate-800 dark:text-slate-200">
+                  {selectedLog.admin?.full_name
+                    ? `${selectedLog.admin.full_name} (${selectedLog.admin.email})`
+                    : selectedLog.admin?.email || "System"}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs text-slate-500 font-medium uppercase mb-1">
+                  Details Payload
+                </p>
+                <pre className="p-3 bg-slate-900 text-slate-100 rounded-lg text-xs font-mono overflow-x-auto whitespace-pre-wrap">
+                  {JSON.stringify(selectedLog.details, null, 2)}
+                </pre>
+              </div>
+            </div>
+
+            <div className="p-3 border-t border-slate-200 dark:border-slate-700 flex justify-end bg-slate-50 dark:bg-slate-900/50">
+              <button
+                onClick={() => setSelectedLog(null)}
+                className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

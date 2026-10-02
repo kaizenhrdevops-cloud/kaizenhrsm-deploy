@@ -141,6 +141,7 @@ export async function POST(req: NextRequest) {
             verification_token: crypto.randomUUID(),
             verification_expires_at: freshVerifyExpiry(),
             verified_at: null,
+            verification_used_at: null,
             created_at: new Date().toISOString(),
           })
           .eq("id", existingSubscriber.id)
@@ -177,6 +178,7 @@ export async function POST(req: NextRequest) {
           .update({
             verification_token: crypto.randomUUID(),
             verification_expires_at: freshVerifyExpiry(),
+            verification_used_at: null,
             created_at: new Date().toISOString(),
           })
           .eq("id", existingSubscriber.id);

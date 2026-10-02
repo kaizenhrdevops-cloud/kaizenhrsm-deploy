@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
 
     // 2. Already verified (link re-clicked): friendly success, no mutation.
     // The token is kept after first use precisely so this branch works.
-    if (subscriber.status === "subscribed" || subscriber.verification_used_at) {
+    if (subscriber.status === "subscribed") {
       return NextResponse.redirect(
         `${siteUrl()}/newsletter/verified?message=Email already verified.`
       );

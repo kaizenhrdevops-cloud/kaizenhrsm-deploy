@@ -149,7 +149,7 @@ export default function ContactReplySection({
       `Dear ${contactName},\n\nThank you for contacting KaizenHR.\n\n\n\nBest regards,\nKaizenHR Team`
     );
 
-    window.open(`mailto:${contactEmail}?subject=${subject}&body=${body}`, "_blank");
+    window.location.href = `mailto:${contactEmail}?subject=${subject}&body=${body}`;
 
     // Show the tracking-note panel instead of a blocking prompt().
     setNoteText("");
