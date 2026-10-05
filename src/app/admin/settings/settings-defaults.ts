@@ -11,6 +11,7 @@ import {
   Award,
   Plug,
   Copyright,
+  Send,
 } from "lucide-react";
 
 export type SystemSettings = {
@@ -32,6 +33,7 @@ export const CATEGORIES: Category[] = [
   { id: "general", label: "General System", icon: Layout },
   { id: "features", label: "Feature Toggles", icon: ToggleLeft },
   { id: "email_config", label: "Email Configuration", icon: Mail },
+  { id: "newsletter", label: "Newsletter Delivery", icon: Send },
   { id: "blog_config", label: "Blog Settings", icon: FileText },
   { id: "contact", label: "Contact & Company", icon: Globe },
   { id: "social", label: "Social & Apps", icon: Share2 },
@@ -43,6 +45,10 @@ export const CATEGORIES: Category[] = [
 
 // Factory defaults (single source of truth for Reset + new installs)
 export const FACTORY_DEFAULTS: SystemSettings = {
+  newsletter_frequency: "weekly",
+  newsletter_send_day: "1",
+  newsletter_send_time: "10:00",
+  newsletter_transactional_reserve: "20",
   newsletter_daily_limit: "100",
   audit_log_retention_days: "30",
   contact_address:
@@ -76,12 +82,19 @@ export const FACTORY_DEFAULTS: SystemSettings = {
 
 // Map keys to categories
 export const CATEGORY_KEYS: Record<string, string[]> = {
-  general: ["newsletter_daily_limit", "audit_log_retention_days"],
+  general: ["audit_log_retention_days"],
   features: ["enable_maintenance_mode", "enable_public_registration"],
   email_config: [
     "admin_notification_email",
     "email_sender_name",
     "email_sender_address",
+  ],
+  newsletter: [
+    "newsletter_frequency",
+    "newsletter_send_day",
+    "newsletter_send_time",
+    "newsletter_transactional_reserve",
+    "newsletter_daily_limit",
   ],
   blog_config: ["blog_default_author_name"],
   contact: [

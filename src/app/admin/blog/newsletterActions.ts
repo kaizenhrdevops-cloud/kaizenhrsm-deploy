@@ -2,14 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/server";
-import type { Database } from "@/types/supabase";
 import { getServiceClient } from "@/lib/supabase-admin";
-import { Resend } from "resend";
-import { postNewsletterTemplate } from "@/lib/email-templates/post-newsletter-template";
 import { formatDateMY } from "@/lib/format";
-
-// Initialize Resend
-const resend = new Resend(process.env.RESEND_API_KEY);
+import {
+  computeNextAutoSlot,
+  getEmailQuota,
+  getNewsletterScheduleConfig,
+  processNewsletterQueue,
+  type QueueRunResult,
+} from "@/lib/newsletter-queue";
 
 // --- Helper Functions ---
 
@@ -182,6 +183,13 @@ export async function getNewsletterModalData(postId: string) {
     // Daily send budget (Resend free = 100/day) for the drain estimate.
     const dailyQuota = await getNewsletterDailyLimit();
 
+    // Delivery-slot info for the scheduling UI.
+    const scheduleConfig = await getNewsletterScheduleConfig(supabaseAdmin);
+    const [nextAutoSlot, quota] = await Promise.all([
+      computeNextAutoSlot(supabaseAdmin, scheduleConfig),
+      getEmailQuota(supabaseAdmin, scheduleConfig).catch(() => null),
+    ]);
+
     return {
       success: true,
       adminEmail: configuredAdminEmail, // Uses value from settings
@@ -190,6 +198,10 @@ export async function getNewsletterModalData(postId: string) {
       postImage: post.featured_image,
       subscriberCount: count || 0,
       dailyQuota,
+      frequency: scheduleConfig.frequency,
+      nextAutoSlot,
+      newsletterAllowanceToday: quota?.newsletterAllowance ?? null,
+      reserve: scheduleConfig.reserve,
     };
   } catch (error: any) {
     console.error("Error in getNewsletterModalData:", error.message);
@@ -197,96 +209,43 @@ export async function getNewsletterModalData(postId: string) {
   }
 }
 
-export async function sendTestNewsletter(postId: string, testEmail: string) {
-  const { supabase } = await requireNewsletterAdmin();
-  try {
-    const { data: post, error: postError } = await supabase
-      .from("posts")
-      .select("title, excerpt, featured_image, slug, category")
-      .eq("id", postId)
-      .single();
+export type ScheduleMode = "auto" | "custom" | "now";
 
-    if (postError || !post) {
-      throw new Error("Post not found.");
-    }
-
-    const { data: postBlocks, error: blocksError } = await supabase
-      .from("post_blocks")
-      .select("type, content")
-      .eq("post_id", postId)
-      .order("order_index", { ascending: true });
-
-    if (blocksError) {
-      throw new Error("Could not fetch post content.");
-    }
-
-    const postPreview =
-      post.excerpt ||
-      generatePreviewFromBlocks(postBlocks) ||
-      "Read the full article on our website.";
-
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://kaizenhrms.com";
-    const postPath =
-      post.category === "blog"
-        ? "resources/blog-articles"
-        : "company/developments";
-    const readMoreUrl = `${siteUrl}/${postPath}/${post.slug}`;
-    // Use a real subscriber token when one exists so the test mail carries
-    // a working unsubscribe link (it lands on the confirm screen — safe to
-    // click). Falls back to the plain page when the list is empty.
-    const { data: sampleSubscriber } = await supabase
-      .from("newsletter_subscribers")
-      .select("unsubscribe_token")
-      .eq("status", "subscribed")
-      .limit(1)
-      .single();
-    const unsubscribeUrl = sampleSubscriber?.unsubscribe_token
-      ? `${siteUrl}/api/newsletter/unsubscribe?id=${sampleSubscriber.unsubscribe_token}`
-      : `${siteUrl}/newsletter/unsubscribe`;
-
-    const { error } = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL!,
-      to: [testEmail], // Uses the email passed from the modal
-      subject: `[TEST] ${post.title}`,
-      html: postNewsletterTemplate({
-        postTitle: post.title || "Untitled Post",
-        postPreviewText: postPreview,
-        postImageUrl: post.featured_image,
-        readMoreUrl: readMoreUrl,
-        unsubscribeUrl: unsubscribeUrl,
-      }),
-    });
-
-    // Log test sends like any other send so the daily quota math sees them.
-    // (Previously test mail consumed Resend quota invisibly.)
-    const supabaseAdmin = await createAdminClient();
-    if (error) {
-      await supabaseAdmin.from("email_send_log").insert({
-        email_type: "newsletter_test",
-        status: "failed",
-        error_message: error.message,
-      });
-      throw new Error(friendlyResendError(error.message));
-    }
-    await supabaseAdmin.from("email_send_log").insert({
-      email_type: "newsletter_test",
-      status: "sent",
-    });
-    return { success: true };
-  } catch (error: any) {
-    console.error("Error sending test newsletter:", error.message);
-    return { success: false, message: error.message };
-  }
-}
-
+/**
+ * Create a newsletter campaign for a post.
+ *
+ * - "auto":   next free slot from Admin → Settings → Newsletter Delivery
+ *             (once a day / once a week at the configured time).
+ * - "custom": the exact time the admin picked.
+ * - "now":    start sending immediately (first batch is sent inline,
+ *             within the newsletter share of today's quota).
+ */
 export async function scheduleNewsletter(
   postId: string,
-  scheduledAt?: string | null
+  mode: ScheduleMode = "auto",
+  customAt?: string | null
 ) {
   const { supabase, user } = await requireNewsletterAdmin();
   const supabaseAdmin = await createAdminClient();
 
   try {
+    // 1. --- Resolve delivery time first (fail fast on bad input) ---
+    let targetSchedule: string;
+    if (mode === "now") {
+      targetSchedule = new Date().toISOString();
+    } else if (mode === "custom") {
+      const parsed = customAt ? new Date(customAt) : null;
+      if (!parsed || isNaN(parsed.getTime())) {
+        throw new Error("Invalid scheduled date/time.");
+      }
+      if (parsed.getTime() < Date.now() - 60_000) {
+        throw new Error("Scheduled time must be in the future.");
+      }
+      targetSchedule = parsed.toISOString();
+    } else {
+      targetSchedule = await computeNextAutoSlot(supabaseAdmin);
+    }
+
     // 2. --- Get Post Data ---
     const { data: post, error: postError } = await supabase
       .from("posts")
@@ -327,15 +286,6 @@ export async function scheduleNewsletter(
       };
     }
 
-    // 5. --- Calculate Scheduled Timestamp ---
-    let targetSchedule = new Date().toISOString();
-    if (scheduledAt) {
-      const parsed = new Date(scheduledAt);
-      if (!isNaN(parsed.getTime())) {
-        targetSchedule = parsed.toISOString();
-      }
-    }
-
     // 5. --- Create Campaign Log ---
     const { data: campaign, error: campaignError } = await supabaseAdmin
       .from("newsletter_campaigns")
@@ -374,20 +324,18 @@ export async function scheduleNewsletter(
       status: "queued",
     }));
 
-    if (logEntries.length > 0) {
-      for (let i = 0; i < logEntries.length; i += LOG_INSERT_CHUNK) {
-        const { error: logError } = await supabaseAdmin
-          .from("newsletter_send_log")
-          .insert(logEntries.slice(i, i + LOG_INSERT_CHUNK));
+    for (let i = 0; i < logEntries.length; i += LOG_INSERT_CHUNK) {
+      const { error: logError } = await supabaseAdmin
+        .from("newsletter_send_log")
+        .insert(logEntries.slice(i, i + LOG_INSERT_CHUNK));
 
-        if (logError) {
-          // Rollback campaign creation if logging fails
-          await supabaseAdmin
-            .from("newsletter_campaigns")
-            .delete()
-            .eq("id", campaign.id);
-          throw new Error(`Failed to queue recipients: ${logError.message}`);
-        }
+      if (logError) {
+        // Rollback campaign creation if logging fails
+        await supabaseAdmin
+          .from("newsletter_campaigns")
+          .delete()
+          .eq("id", campaign.id);
+        throw new Error(`Failed to queue recipients: ${logError.message}`);
       }
     }
 
@@ -413,341 +361,44 @@ export async function scheduleNewsletter(
       user.id,
       "campaign.schedule",
       campaign.id,
-      `Scheduled campaign "${post.title || "Untitled"}" for ${subscribers.length} subscribers (scheduled for ${formatDateMY(targetSchedule)})`
+      `Scheduled campaign "${post.title || "Untitled"}" for ${subscribers.length} subscribers (${mode}, ${formatDateMY(targetSchedule)})`
     );
+
+    // 8. --- "Send now": deliver right away instead of waiting for a tick ---
+    let message = `Campaign scheduled for ${formatDateMY(targetSchedule)} (${subscribers.length} subscribers).`;
+    if (mode === "now") {
+      const run = await processNewsletterQueue({
+        campaignId: campaign.id,
+        timeBudgetMs: INLINE_SEND_BUDGET_MS,
+      });
+      message = describeInlineRun(run, subscribers.length);
+    }
 
     revalidatePath("/admin/newsletter");
     revalidatePath("/admin/blog");
 
-    return {
-      success: true,
-      message: `Campaign scheduled for ${subscribers.length} subscribers!`,
-    };
+    return { success: true, message };
   } catch (error: any) {
     console.error("Error scheduling newsletter:", error.message);
     return { success: false, message: error.message };
   }
 }
 
-export async function processNewsletterQueue() {
-  console.log("CRON: processNewsletterQueue started...");
-  const supabaseAdmin = await createAdminClient();
-  // Available to the catch block (fixes dead error.campaign_id handling).
-  let campaignId: string | null = null;
+/** Inline "send now" budget — stays well under the 60s function limit. */
+const INLINE_SEND_BUDGET_MS = 25_000;
 
-  try {
-    // 1. --- Get Remaining Quota ---
-    const { data: quota, error: rpcError } = await supabaseAdmin.rpc(
-      "get_remaining_daily_email_quota"
-    );
-
-    if (rpcError) throw new Error(`Failed to get quota: ${rpcError.message}`);
-
-    const remaining_quota = quota as number;
-    console.log(`CRON: Remaining daily quota: ${remaining_quota}`);
-
-    if (remaining_quota <= 0) {
-      console.log("CRON: No quota remaining. Exiting.");
-      return { success: true, message: "No quota remaining." };
-    }
-
-    // 2. --- Find a Campaign to Process (only if scheduled time has arrived) ---
-    const nowIso = new Date().toISOString();
-    const { data: activeCampaign, error: activeCampaignError } =
-      await supabaseAdmin
-        .from("newsletter_campaigns")
-        .select(
-          "id, post_id, subject, preview_text, status, scheduled_at, total_recipients, sent_count, queued_count, total_failed"
-        )
-        .in("status", ["scheduled", "in_progress"])
-        .lte("scheduled_at", nowIso)
-        .order("scheduled_at", { ascending: true })
-        .limit(1)
-        .single();
-
-    if (activeCampaignError || !activeCampaign) {
-      console.log("CRON: No campaigns to process.");
-      return { success: true, message: "No campaigns to process." };
-    }
-    campaignId = activeCampaign.id;
-
-    if (activeCampaign.status === "scheduled") {
-      await supabaseAdmin
-        .from("newsletter_campaigns")
-        .update({ status: "in_progress" })
-        .eq("id", campaignId);
-    }
-
-    // 3. --- Get Post and Subscribers Batch ---
-    const { data: post, error: postError } = await supabaseAdmin
-      .from("posts")
-      .select("title, featured_image, slug, category")
-      .eq("id", activeCampaign.post_id)
-      .single();
-
-    if (postError || !post) {
-      throw new Error(`Post ${activeCampaign.post_id} not found for campaign.`);
-    }
-
-    // Small per-run batch for free-tier limits:
-    // - Vercel Hobby: 10s serverless timeout
-    // - Resend free: ~2 API requests/second → sequential sends paced 600ms
-    //   (≈6-7s per tick). Cron runs hourly; each tick sends at most BATCH_SIZE.
-    const BATCH_SIZE = 10;
-    const SEND_PACING_MS = 600;
-    const batchLimit = Math.min(remaining_quota, BATCH_SIZE);
-
-    // FIFO order (deterministic) + stale `sending` rows from an interrupted
-    // tick are retried here instead of getting stuck forever.
-    const { data: batch, error: batchError } = await supabaseAdmin
-      .from("newsletter_send_log")
-      .select("id, email, subscriber_id")
-      .eq("campaign_id", campaignId)
-      .in("status", ["queued", "sending"])
-      .order("created_at", { ascending: true })
-      .limit(batchLimit);
-
-    if (batchError) throw new Error("Failed to fetch recipient batch.");
-
-    if (!batch || batch.length === 0) {
-      await supabaseAdmin
-        .from("newsletter_campaigns")
-        .update({
-          status: "completed",
-          completed_at: new Date().toISOString(),
-          queued_count: 0,
-        })
-        .eq("id", campaignId);
-      console.log(`CRON: Campaign ${campaignId} completed.`);
-      return { success: true, message: "Campaign completed." };
-    }
-
-    // Claim the batch so an overlapping tick can't double-send the same rows.
-    await supabaseAdmin
-      .from("newsletter_send_log")
-      .update({ status: "sending" })
-      .eq("campaign_id", campaignId)
-      .in(
-        "id",
-        batch.map((r) => r.id)
-      );
-
-    console.log(
-      `CRON: Found campaign ${campaignId}. Sending to ${batch.length} recipients...`
-    );
-
-    // 4. --- Prepare and Send Batch ---
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://kaizenhrms.com";
-    const postPath =
-      post.category === "blog"
-        ? "resources/blog-articles"
-        : "company/developments";
-    const readMoreUrl = `${siteUrl}/${postPath}/${post.slug}`;
-
-    // Bulk-fetch unsubscribe tokens + current status (1 query instead of N).
-    // Status is re-checked here so anyone who unsubscribed after scheduling
-    // is skipped instead of emailed.
-    const subscriberIds = [...new Set(batch.map((r) => r.subscriber_id))];
-    const { data: tokenRows, error: tokenError } = await supabaseAdmin
-      .from("newsletter_subscribers")
-      .select("id, status, unsubscribe_token")
-      .in("id", subscriberIds);
-
-    if (tokenError) throw new Error("Failed to fetch unsubscribe tokens.");
-
-    const subscriberById = new Map(
-      (tokenRows || []).map((s) => [s.id, s])
-    );
-
-    type SendOutcome = {
-      log_id: string;
-      outcome: "sent" | "failed" | "skipped" | "retryable";
-      error?: string;
-    };
-    const outcomes: SendOutcome[] = [];
-    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-    for (let i = 0; i < batch.length; i++) {
-      const recipient = batch[i];
-      const subscriber = subscriberById.get(recipient.subscriber_id);
-
-      if (!subscriber || subscriber.status !== "subscribed") {
-        // Unsubscribed/deleted after scheduling: drop the row, don't count
-        // it as a failure.
-        await supabaseAdmin
-          .from("newsletter_send_log")
-          .delete()
-          .eq("id", recipient.id);
-        outcomes.push({ log_id: recipient.id, outcome: "skipped" });
-        continue;
-      }
-
-      if (!subscriber.unsubscribe_token) {
-        console.error(
-          `CRON: Skipping ${recipient.email}, no unsubscribe token found.`
-        );
-        outcomes.push({
-          log_id: recipient.id,
-          outcome: "failed",
-          error: "Unsubscribe token not found",
-        });
-        continue;
-      }
-
-      const unsubscribeUrl = `${siteUrl}/api/newsletter/unsubscribe?id=${subscriber.unsubscribe_token}`;
-
-      try {
-        const { error: sendError } = await resend.emails.send({
-          from: process.env.RESEND_FROM_EMAIL!,
-          to: [recipient.email],
-          subject: activeCampaign.subject,
-          html: postNewsletterTemplate({
-            postTitle: activeCampaign.subject,
-            postPreviewText: activeCampaign.preview_text || "Read the full article...",
-            postImageUrl: post.featured_image,
-            readMoreUrl: readMoreUrl,
-            unsubscribeUrl: unsubscribeUrl,
-          }),
-        });
-
-        if (sendError) {
-          const msg =
-            (sendError as { message?: string })?.message || "Send failed";
-          const retryable = isRetryableSendError(sendError);
-          outcomes.push({
-            log_id: recipient.id,
-            outcome: retryable ? "retryable" : "failed",
-            error: msg,
-          });
-        } else {
-          outcomes.push({ log_id: recipient.id, outcome: "sent" });
-        }
-      } catch (err: any) {
-        outcomes.push({
-          log_id: recipient.id,
-          outcome: "failed",
-          error: err?.message || "Send failed",
-        });
-      }
-
-      // Resend free ≈ 2 req/s — never burst.
-      if (i < batch.length - 1) await sleep(SEND_PACING_MS);
-    }
-
-    // 5. --- Log Results ---
-    // Individual update failures must not abort the rest: settle everything,
-    // then update counters regardless.
-    const logUpdates = outcomes.map((o) => {
-      if (o.outcome === "sent") {
-        return supabaseAdmin
-          .from("newsletter_send_log")
-          .update({ status: "sent", sent_at: new Date().toISOString() })
-          .eq("id", o.log_id);
-      }
-      if (o.outcome === "failed") {
-        return supabaseAdmin
-          .from("newsletter_send_log")
-          .update({ status: "failed", error_message: o.error || "Send failed" })
-          .eq("id", o.log_id);
-      }
-      // skipped rows were already deleted; retryable rows stay `sending`
-      // for the next tick.
-      return Promise.resolve(null);
-    });
-
-    const settled = await Promise.allSettled(logUpdates);
-    settled.forEach((r, i) => {
-      if (r.status === "rejected") {
-        console.error(
-          `CRON: Failed to update send-log row ${outcomes[i].log_id}:`,
-          r.reason
-        );
-      }
-    });
-
-    const successfulSends = outcomes.filter((o) => o.outcome === "sent").length;
-    const failedSends = outcomes.filter((o) => o.outcome === "failed").length;
-    const skippedSends = outcomes.filter((o) => o.outcome === "skipped").length;
-    const retryableSends = outcomes.filter(
-      (o) => o.outcome === "retryable"
-    ).length;
-    console.log(
-      `CRON: Batch complete. Success: ${successfulSends}, Failed: ${failedSends}, Skipped: ${skippedSends}, Retryable: ${retryableSends}.`
-    );
-
-    // 6. --- Update Campaign Counters ---
-    // Resolved rows (sent/failed/skipped) leave the queue; retryable rows
-    // stay `sending` and keep queued_count above zero.
-    const resolvedCount = successfulSends + failedSends + skippedSends;
-    const newQueuedCount = Math.max(
-      0,
-      (activeCampaign.queued_count || 0) - resolvedCount
-    );
-    const newSentCount = (activeCampaign.sent_count || 0) + successfulSends;
-    const newFailedCount = (activeCampaign.total_failed || 0) + failedSends;
-
-    try {
-      await supabaseAdmin
-        .from("newsletter_campaigns")
-        .update({
-          sent_count: newSentCount,
-          queued_count: newQueuedCount,
-          total_failed: newFailedCount,
-          status: newQueuedCount === 0 ? "completed" : "in_progress",
-          completed_at: newQueuedCount === 0 ? new Date().toISOString() : null,
-        })
-        .eq("id", campaignId);
-    } catch (counterError: any) {
-      // Sends already happened — never fail the tick over counters.
-      console.error("CRON: Failed to update campaign counters:", counterError);
-    }
-
-    return {
-      success: true,
-      message: `Batch processed. Sent: ${successfulSends}, Failed: ${failedSends}, Skipped: ${skippedSends}, Retry later: ${retryableSends}.`,
-    };
-  } catch (error: any) {
-    console.error("CRON: Error processing queue:", error.message);
-    if (campaignId) {
-      await supabaseAdmin
-        .from("newsletter_campaigns")
-        .update({
-          status: "failed",
-          error_details: { error: error.message },
-        })
-        .eq("id", campaignId);
-    }
-    return { success: false, message: error.message };
+function describeInlineRun(run: QueueRunResult, total: number): string {
+  if (!run.success && run.sent === 0) {
+    return `Campaign queued, but sending hit an error: ${run.message} It will be retried automatically.`;
   }
-}
-
-/**
- * Resend's free tier without a verified domain rejects any recipient except
- * the account owner's address with a "testing emails ... verify a domain"
- * error. Surface that as an actionable message instead of raw provider text.
- */
-function friendlyResendError(message: string): string {
-  if (/testing emails|verify a domain/i.test(message)) {
-    return (
-      "Resend refused the recipient: on the free tier without a verified " +
-      "domain, mail can only go to your Resend account email. Set Admin " +
-      "notification email (Admin → Settings) to that address for testing, " +
-      "or verify a domain in Resend. " +
-      `Provider said: ${message}`
-    );
+  if (run.sent >= total) {
+    return `Newsletter sent to all ${run.sent} subscriber(s).`;
   }
-  return message;
-}
-
-/** Rate-limit / transient errors are worth retrying next tick. */function isRetryableSendError(error: unknown): boolean {
-  const statusCode = (error as { statusCode?: number } | null)?.statusCode;
-  if (statusCode === 429 || (statusCode != null && statusCode >= 500)) return true;
-  const message = (
-    (error as { message?: unknown } | null)?.message ?? ""
-  ).toString();
-  return /rate limit|too many requests|429|temporar|timeout|network|fetch failed/i.test(
-    message
-  );
+  const rest = total - run.sent - run.skipped;
+  if (run.quotaExhausted) {
+    return `Sent to ${run.sent} subscriber(s) now. Today's newsletter quota is used up, so the remaining ${rest} will go out automatically tomorrow.`;
+  }
+  return `Sent to ${run.sent} subscriber(s) now; the remaining ${rest} will continue automatically within a few minutes.`;
 }
 
 // --- Campaign lifecycle actions (used by /admin/newsletter) ---
@@ -1042,7 +693,7 @@ export async function sendCampaignNow(
   try {
     const { data: campaign, error } = await supabaseAdmin
       .from("newsletter_campaigns")
-      .select("id, status, subject")
+      .select("id, status, subject, total_recipients")
       .eq("id", campaignId)
       .single();
 
@@ -1077,12 +728,20 @@ export async function sendCampaignNow(
       `Triggered immediate send for campaign "${campaign.subject}"`
     );
 
-    // Trigger process queue in background so sending starts
-    void processNewsletterQueue();
+    // Awaited on purpose: a fire-and-forget promise is killed as soon as
+    // the serverless function returns, which is why "Send now" used to
+    // wait for the next daily cron.
+    const run = await processNewsletterQueue({
+      campaignId,
+      timeBudgetMs: INLINE_SEND_BUDGET_MS,
+    });
 
     revalidatePath("/admin/newsletter");
     revalidatePath(`/admin/newsletter/${campaignId}`);
-    return { success: true, message: "Campaign delivery started!" };
+    return {
+      success: run.success || run.sent > 0,
+      message: describeInlineRun(run, campaign.total_recipients ?? run.sent),
+    };
   } catch (err: any) {
     console.error("Error sending campaign now:", err?.message);
     return { success: false, message: err?.message || "Send failed." };

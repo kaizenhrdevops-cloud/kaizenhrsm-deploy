@@ -180,12 +180,78 @@ export default function SettingsClient({
 
           <div className="p-6 space-y-6">
             {activeCategory === "general" && (
-              <>
+              <Field
+                label="Audit Log Retention"
+                select
+                value={settings.audit_log_retention_days || "30"}
+                onChange={(v) =>
+                  handleChange("audit_log_retention_days", v)
+                }
+                options={[
+                  { value: "0.0416", label: "1 Hour (Testing)" },
+                  { value: "30", label: "30 Days" },
+                  { value: "90", label: "90 Days" },
+                  { value: "365", label: "1 Year" },
+                ]}
+              />
+            )}
+
+            {activeCategory === "newsletter" && (
+              <div className="space-y-6">
+                <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-900/50 text-xs text-blue-800 dark:text-blue-300 space-y-1">
+                  <p className="font-semibold text-sm">Resend Free Tier Optimization & Email Priority</p>
+                  <p>
+                    High-priority emails (Contact Us submissions, admin quick replies, and subscriber verification) are sent immediately.
+                    Blog newsletters are queued and throttled according to your delivery schedule below, respecting your daily quota reserve.
+                  </p>
+                </div>
+
                 <Field
-                  label="Daily Email Send Limit"
+                  label="Delivery Frequency"
+                  select
+                  value={settings.newsletter_frequency || "weekly"}
+                  onChange={(v) => handleChange("newsletter_frequency", v)}
+                  options={[
+                    { value: "weekly", label: "Once a week (Recommended for Resend free tier)" },
+                    { value: "daily", label: "Once a day" },
+                  ]}
+                  hint="How often newly scheduled blog posts are delivered to your newsletter list."
+                />
+
+                {(settings.newsletter_frequency || "weekly") === "weekly" && (
+                  <Field
+                    label="Weekly Send Day"
+                    select
+                    value={settings.newsletter_send_day || "1"}
+                    onChange={(v) => handleChange("newsletter_send_day", v)}
+                    options={[
+                      { value: "1", label: "Monday" },
+                      { value: "2", label: "Tuesday" },
+                      { value: "3", label: "Wednesday" },
+                      { value: "4", label: "Thursday" },
+                      { value: "5", label: "Friday" },
+                      { value: "6", label: "Saturday" },
+                      { value: "0", label: "Sunday" },
+                    ]}
+                    hint="The day of the week when weekly newsletters are scheduled to send."
+                  />
+                )}
+
+                <Field
+                  label="Preferred Send Time (MYT - GMT+8)"
+                  type="text"
+                  value={settings.newsletter_send_time || "10:00"}
+                  onChange={(v) => handleChange("newsletter_send_time", v)}
+                  placeholder="10:00"
+                  hint="24-hour format in Malaysia Time (GMT+8), e.g. 10:00 for 10:00 AM or 22:00 for 10:00 PM."
+                />
+
+                <Field
+                  label="Daily Total Email Limit"
                   type="number"
                   value={settings.newsletter_daily_limit || "100"}
                   onChange={(v) => handleChange("newsletter_daily_limit", v)}
+                  hint="Total email budget per day across all services (Resend free tier = 100/day)."
                   headerAction={
                     <Link
                       href="/admin/settings/email-logic"
@@ -196,21 +262,15 @@ export default function SettingsClient({
                     </Link>
                   }
                 />
+
                 <Field
-                  label="Audit Log Retention"
-                  select
-                  value={settings.audit_log_retention_days || "30"}
-                  onChange={(v) =>
-                    handleChange("audit_log_retention_days", v)
-                  }
-                  options={[
-                    { value: "0.0416", label: "1 Hour (Testing)" },
-                    { value: "30", label: "30 Days" },
-                    { value: "90", label: "90 Days" },
-                    { value: "365", label: "1 Year" },
-                  ]}
+                  label="Transactional Reserve (Priority Protection)"
+                  type="number"
+                  value={settings.newsletter_transactional_reserve || "20"}
+                  onChange={(v) => handleChange("newsletter_transactional_reserve", v)}
+                  hint="Number of daily emails reserved exclusively for high-priority emails (Contact Us, quick reply, verification). Newsletters will pause if remaining daily quota drops below this amount."
                 />
-              </>
+              </div>
             )}
 
             {activeCategory === "features" && (

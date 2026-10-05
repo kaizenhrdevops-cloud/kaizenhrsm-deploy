@@ -53,6 +53,10 @@ export async function getSystemSettings(): Promise<{
   }
 
   const settingsKeys = [
+    "newsletter_frequency",
+    "newsletter_send_day",
+    "newsletter_send_time",
+    "newsletter_transactional_reserve",
     "newsletter_daily_limit",
     "audit_log_retention_days",
     "contact_address",

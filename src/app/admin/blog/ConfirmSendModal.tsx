@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import {
   AlertTriangle,
-  Mail,
   Users,
   Loader2,
   X,
@@ -15,11 +14,13 @@ import {
   Clock,
   Send,
   Check,
+  Calendar,
+  ShieldCheck,
 } from "lucide-react";
 import {
   getNewsletterModalData,
-  sendTestNewsletter,
   scheduleNewsletter,
+  type ScheduleMode,
 } from "./newsletterActions";
 import type { PostWithAuthor } from "./posts-client";
 import { toast } from "react-hot-toast";
@@ -38,6 +39,10 @@ type NewsletterData = {
   postImage: string | null;
   subscriberCount: number;
   dailyQuota?: number;
+  frequency?: "daily" | "weekly";
+  nextAutoSlot?: string;
+  newsletterAllowanceToday?: number | null;
+  reserve?: number;
 };
 
 function toDatetimeLocalString(date: Date): string {
@@ -77,6 +82,25 @@ const getDefaultScheduleTime = () => {
   }
 };
 
+function formatMYTDateTime(isoString?: string | null): string {
+  if (!isoString) return "";
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleString("en-MY", {
+      timeZone: "Asia/Kuala_Lumpur",
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  } catch {
+    return isoString;
+  }
+}
+
 export default function ConfirmSendModal({
   isOpen,
   onClose,
@@ -86,14 +110,13 @@ export default function ConfirmSendModal({
   const [data, setData] = useState<NewsletterData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isSendingTest, setIsSendingTest] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
   const [confirmingSchedule, setConfirmingSchedule] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // Delivery timing states
-  const [scheduleType, setScheduleType] = useState<"now" | "later">("later");
-  const [scheduledDateTime, setScheduledDateTime] = useState<string>("");
+  // Delivery timing states: "auto" | "now" | "custom"
+  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>("auto");
+  const [customDateTime, setCustomDateTime] = useState<string>("");
 
   useEffect(() => {
     setMounted(true);
@@ -119,8 +142,8 @@ export default function ConfirmSendModal({
       setError(null);
       setData(null);
       setConfirmingSchedule(false);
-      setScheduleType("later");
-      setScheduledDateTime(getDefaultScheduleTime());
+      setScheduleMode("auto");
+      setCustomDateTime(getDefaultScheduleTime());
 
       getNewsletterModalData(post.id)
         .then((result) => {
@@ -134,28 +157,15 @@ export default function ConfirmSendModal({
     }
   }, [isOpen, post]);
 
-  const handleSendTest = async () => {
-    if (!post || !data) return;
-    setIsSendingTest(true);
-    const toastId = toast.loading("Sending test email...");
-    const result = await sendTestNewsletter(post.id, data.adminEmail);
-    if (result.success) {
-      toast.success("Test email sent successfully!", { id: toastId });
-    } else {
-      toast.error(`Failed to send test: ${result.message}`, { id: toastId });
-    }
-    setIsSendingTest(false);
-  };
-
-  const handleScheduleAll = async () => {
+  const handleScheduleOrSend = async () => {
     if (!data || !post) return;
 
-    if (scheduleType === "later") {
-      if (!scheduledDateTime) {
+    if (scheduleMode === "custom") {
+      if (!customDateTime) {
         toast.error("Please pick a scheduled date and time.");
         return;
       }
-      const targetTime = new Date(scheduledDateTime).getTime();
+      const targetTime = new Date(customDateTime).getTime();
       if (isNaN(targetTime)) {
         toast.error("Invalid scheduled date/time.");
         return;
@@ -175,46 +185,32 @@ export default function ConfirmSendModal({
 
     setIsScheduling(true);
     const toastId = toast.loading(
-      scheduleType === "later"
-        ? `Scheduling newsletter for ${data.subscriberCount} subscribers...`
-        : `Queuing immediate newsletter for ${data.subscriberCount} subscribers...`
+      scheduleMode === "now"
+        ? `Sending newsletter immediately to ${data.subscriberCount} subscribers...`
+        : `Scheduling newsletter for ${data.subscriberCount} subscribers...`
     );
 
-    const targetIso =
-      scheduleType === "later"
-        ? new Date(scheduledDateTime).toISOString()
-        : null;
+    const customIso =
+      scheduleMode === "custom" ? new Date(customDateTime).toISOString() : null;
 
-    const result = await scheduleNewsletter(post.id, targetIso);
+    const result = await scheduleNewsletter(post.id, scheduleMode, customIso);
 
     if (result.success) {
-      toast.success(result.message || "Campaign scheduled successfully!", { id: toastId });
+      toast.success(result.message || "Newsletter scheduled successfully!", {
+        id: toastId,
+        duration: 5000,
+      });
       onSendComplete();
     } else {
-      toast.error(`Failed to schedule: ${result.message}`, { id: toastId });
+      toast.error(`Failed: ${result.message}`, { id: toastId });
     }
     setIsScheduling(false);
   };
 
-  const formatSchedulePreview = () => {
-    if (!scheduledDateTime) return "";
-    try {
-      const d = new Date(scheduledDateTime);
-      if (isNaN(d.getTime())) return "";
-      return d.toLocaleString("en-MY", {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      });
-    } catch {
-      return scheduledDateTime;
-    }
-  };
-
   if (!mounted || !isOpen || !post) return null;
+
+  const autoSlotFormatted = formatMYTDateTime(data?.nextAutoSlot);
+  const customFormatted = formatMYTDateTime(customDateTime);
 
   const modalContent = (
     <>
@@ -240,7 +236,7 @@ export default function ConfirmSendModal({
                     Send / Schedule Newsletter
                   </h2>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    Review post and choose delivery time for your subscribers
+                    Review post and select delivery timing for your subscribers
                   </p>
                 </div>
               </div>
@@ -260,7 +256,7 @@ export default function ConfirmSendModal({
               <div className="flex flex-col items-center justify-center py-20">
                 <Loader2 className="w-12 h-12 animate-spin text-blue-600 dark:text-blue-400" />
                 <p className="mt-4 text-sm font-medium text-gray-600 dark:text-gray-300">
-                  Loading newsletter data...
+                  Loading newsletter details...
                 </p>
               </div>
             )}
@@ -328,39 +324,56 @@ export default function ConfirmSendModal({
                   </div>
                 </div>
 
-                {/* Subscriber Count Card */}
-                <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xs p-5">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-blue-600 rounded-xl shadow-md text-white">
-                      <Users className="w-6 h-6" />
+                {/* Subscriber & Priority Quota Status Card */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 bg-blue-600 rounded-xl text-white shadow-sm">
+                        <Users className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                          Subscribers
+                        </p>
+                        <p className="text-xl font-bold text-gray-900 dark:text-white">
+                          {data.subscriberCount.toLocaleString()}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                        Active Verified Subscribers
-                      </p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white mt-0.5">
-                        {data.subscriberCount.toLocaleString()}
-                      </p>
+                    <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+                      Active verified recipients
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 bg-emerald-600 rounded-xl text-white shadow-sm">
+                        <ShieldCheck className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                          Today's Newsletter Quota
+                        </p>
+                        <p className="text-xl font-bold text-gray-900 dark:text-white">
+                          {data.newsletterAllowanceToday != null
+                            ? `${data.newsletterAllowanceToday} mails`
+                            : "Ready"}
+                        </p>
+                      </div>
                     </div>
-                    {data.subscriberCount > 0 ? (
-                      <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold rounded-full">
-                        Ready to send
-                      </span>
-                    ) : (
-                      <span className="px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-semibold rounded-full">
-                        No subscribers
-                      </span>
-                    )}
+                    <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+                      {data.reserve ?? 20} mails reserved for high-priority contact replies
+                    </p>
                   </div>
                 </div>
 
-                {/* Delivery Timing Section */}
+                {/* Delivery Mode Selection */}
                 <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-slate-50/60 dark:bg-gray-800/40 p-5 space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <CalendarClock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                       <label className="text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
-                        Delivery Schedule
+                        Delivery Timing
                       </label>
                     </div>
                     <span className="text-xs text-gray-500 dark:text-gray-400">
@@ -368,31 +381,32 @@ export default function ConfirmSendModal({
                     </span>
                   </div>
 
-                  {/* Mode switcher: Schedule for Later vs Send Immediately */}
-                  <div className="grid grid-cols-2 gap-2 p-1 bg-gray-200/70 dark:bg-gray-900/70 rounded-xl">
+                  {/* 3-Way Mode Switcher: Auto Schedule vs Send Immediately vs Custom */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-1 bg-gray-200/70 dark:bg-gray-900/70 rounded-xl">
                     <button
                       type="button"
                       onClick={() => {
-                        setScheduleType("later");
+                        setScheduleMode("auto");
                         setConfirmingSchedule(false);
                       }}
                       className={`flex items-center justify-center gap-2 py-2 px-3 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                        scheduleType === "later"
+                        scheduleMode === "auto"
                           ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-xs"
                           : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                       }`}
                     >
-                      <Clock size={14} />
-                      <span>Schedule for Specific Time</span>
+                      <Calendar size={14} />
+                      <span>Auto Schedule ({data.frequency || "weekly"})</span>
                     </button>
+
                     <button
                       type="button"
                       onClick={() => {
-                        setScheduleType("now");
+                        setScheduleMode("now");
                         setConfirmingSchedule(false);
                       }}
                       className={`flex items-center justify-center gap-2 py-2 px-3 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                        scheduleType === "now"
+                        scheduleMode === "now"
                           ? "bg-white dark:bg-gray-800 text-emerald-600 dark:text-emerald-400 shadow-xs"
                           : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                       }`}
@@ -400,9 +414,55 @@ export default function ConfirmSendModal({
                       <Send size={14} />
                       <span>Send Immediately</span>
                     </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setScheduleMode("custom");
+                        setConfirmingSchedule(false);
+                      }}
+                      className={`flex items-center justify-center gap-2 py-2 px-3 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                        scheduleMode === "custom"
+                          ? "bg-white dark:bg-gray-800 text-purple-600 dark:text-purple-400 shadow-xs"
+                          : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                      }`}
+                    >
+                      <Clock size={14} />
+                      <span>Custom Time</span>
+                    </button>
                   </div>
 
-                  {scheduleType === "later" ? (
+                  {/* Mode details */}
+                  {scheduleMode === "auto" && (
+                    <div className="p-4 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 rounded-xl space-y-1.5">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-blue-800 dark:text-blue-300">
+                        <Check size={14} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                        <span>
+                          Next Scheduled Slot: <strong>{autoSlotFormatted || "Calculating..."}</strong>
+                        </span>
+                      </div>
+                      <p className="text-xs text-blue-700/80 dark:text-blue-300/80 pl-5">
+                        Follows your <strong>{data.frequency || "weekly"}</strong> delivery schedule configured in{" "}
+                        <span className="font-semibold">Admin → Settings → Newsletter Delivery</span>.
+                        Multiple queued posts automatically queue one after another.
+                      </p>
+                    </div>
+                  )}
+
+                  {scheduleMode === "now" && (
+                    <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 rounded-xl space-y-1.5">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+                        <Send size={14} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                        <span>Immediate Delivery via Resend Batch API</span>
+                      </div>
+                      <p className="text-xs text-emerald-700/80 dark:text-emerald-300/80 pl-5">
+                        Delivers directly to your active subscribers right now, without waiting for any cron cycle.
+                        Protects a reserve of {data.reserve ?? 20} emails for incoming contact inquiries.
+                      </p>
+                    </div>
+                  )}
+
+                  {scheduleMode === "custom" && (
                     <div className="space-y-3 pt-1">
                       {/* Presets */}
                       <div>
@@ -413,7 +473,7 @@ export default function ConfirmSendModal({
                           <button
                             type="button"
                             onClick={() => {
-                              setScheduledDateTime(getPresetTonight(22));
+                              setCustomDateTime(getPresetTonight(22));
                               setConfirmingSchedule(false);
                             }}
                             className="px-2.5 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-colors border border-gray-200 dark:border-gray-700 text-center cursor-pointer"
@@ -423,7 +483,7 @@ export default function ConfirmSendModal({
                           <button
                             type="button"
                             onClick={() => {
-                              setScheduledDateTime(getPresetTonight(23));
+                              setCustomDateTime(getPresetTonight(23));
                               setConfirmingSchedule(false);
                             }}
                             className="px-2.5 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-colors border border-gray-200 dark:border-gray-700 text-center cursor-pointer"
@@ -433,7 +493,7 @@ export default function ConfirmSendModal({
                           <button
                             type="button"
                             onClick={() => {
-                              setScheduledDateTime(getPresetTomorrow(9));
+                              setCustomDateTime(getPresetTomorrow(9));
                               setConfirmingSchedule(false);
                             }}
                             className="px-2.5 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-colors border border-gray-200 dark:border-gray-700 text-center cursor-pointer"
@@ -443,7 +503,7 @@ export default function ConfirmSendModal({
                           <button
                             type="button"
                             onClick={() => {
-                              setScheduledDateTime(getPresetTomorrow(22));
+                              setCustomDateTime(getPresetTomorrow(22));
                               setConfirmingSchedule(false);
                             }}
                             className="px-2.5 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-colors border border-gray-200 dark:border-gray-700 text-center cursor-pointer"
@@ -456,94 +516,84 @@ export default function ConfirmSendModal({
                       {/* Custom Datetime Input */}
                       <div>
                         <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1.5">
-                          Or Choose Exact Date & Time
+                          Exact Date & Time (MYT GMT+8)
                         </span>
                         <input
                           type="datetime-local"
-                          value={scheduledDateTime}
+                          value={customDateTime}
                           onChange={(e) => {
-                            setScheduledDateTime(e.target.value);
+                            setCustomDateTime(e.target.value);
                             setConfirmingSchedule(false);
                           }}
                           min={toDatetimeLocalString(new Date())}
-                          className="w-full px-3.5 py-2 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-gray-900 dark:text-white"
+                          className="w-full px-3.5 py-2 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-purple-500 focus:outline-none text-gray-900 dark:text-white"
                         />
                       </div>
 
-                      {scheduledDateTime && (
-                        <div className="p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 rounded-xl flex items-center gap-2 text-xs text-blue-700 dark:text-blue-300">
-                          <Check size={14} className="shrink-0 text-blue-600 dark:text-blue-400" />
+                      {customDateTime && (
+                        <div className="p-3 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-900/60 rounded-xl flex items-center gap-2 text-xs text-purple-700 dark:text-purple-300">
+                          <Check size={14} className="shrink-0 text-purple-600 dark:text-purple-400" />
                           <span>
-                            Delivery starts at:{" "}
-                            <strong>{formatSchedulePreview()}</strong>. The cron will not process this campaign before this time.
+                            Delivery starts at: <strong>{customFormatted}</strong>
                           </span>
                         </div>
                       )}
                     </div>
-                  ) : (
-                    <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 rounded-xl flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-300">
-                      <Check size={14} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
-                      <span>
-                        Emails will start sending immediately on the next scheduled queue cycle.
-                      </span>
-                    </div>
                   )}
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex flex-col gap-3 pt-2 sm:flex-row">
-                  <button
-                    type="button"
-                    onClick={handleSendTest}
-                    disabled={isSendingTest || isScheduling}
-                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/50 disabled:opacity-50 transition-all cursor-pointer"
-                  >
-                    {isSendingTest ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                {/* Action Buttons (Send Test removed as requested) */}
+                <div className="flex flex-col gap-3 pt-2 sm:flex-row items-center justify-between">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    {data.subscriberCount === 0 ? (
+                      <span className="text-amber-600">No subscribed recipients found.</span>
                     ) : (
-                      <Mail className="w-3.5 h-3.5" />
+                      <span>Ready to send to {data.subscriberCount} subscriber(s)</span>
                     )}
-                    <span>Send Test to {data.adminEmail}</span>
-                  </button>
+                  </div>
 
-                  <button
-                    type="button"
-                    onClick={handleScheduleAll}
-                    disabled={
-                      isSendingTest ||
-                      isScheduling ||
-                      data.subscriberCount === 0
-                    }
-                    className={`inline-flex items-center justify-center gap-2 px-5 py-2.5 text-xs font-semibold text-white rounded-xl shadow-md transition-all cursor-pointer disabled:opacity-50 disabled:bg-gray-400 ${
-                      scheduleType === "now"
-                        ? "bg-emerald-600 hover:bg-emerald-700"
-                        : "bg-blue-600 hover:bg-blue-700"
-                    }`}
-                  >
-                    {isScheduling ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : scheduleType === "now" ? (
-                      <Send className="w-4 h-4" />
-                    ) : (
-                      <CalendarClock className="w-4 h-4" />
-                    )}
-                    <span>
-                      {confirmingSchedule
-                        ? `Click again to confirm (${data.subscriberCount.toLocaleString()} subscribers)`
-                        : scheduleType === "now"
-                        ? `Send Now (${data.subscriberCount.toLocaleString()} Subscribers)`
-                        : `Schedule for ${formatSchedulePreview() || "Selected Time"} (${data.subscriberCount.toLocaleString()} Subscribers)`}
-                    </span>
-                  </button>
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      disabled={isScheduling}
+                      className="px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 transition-all disabled:opacity-50 cursor-pointer w-full sm:w-auto"
+                    >
+                      Cancel
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    disabled={isScheduling}
-                    className="px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl sm:ml-auto hover:bg-gray-50 dark:hover:bg-gray-600 transition-all disabled:opacity-50 cursor-pointer"
-                  >
-                    Cancel
-                  </button>
+                    <button
+                      type="button"
+                      onClick={handleScheduleOrSend}
+                      disabled={isScheduling || data.subscriberCount === 0}
+                      className={`inline-flex items-center justify-center gap-2 px-5 py-2.5 text-xs font-semibold text-white rounded-xl shadow-md transition-all cursor-pointer disabled:opacity-50 disabled:bg-gray-400 w-full sm:w-auto ${
+                        scheduleMode === "now"
+                          ? "bg-emerald-600 hover:bg-emerald-700"
+                          : scheduleMode === "custom"
+                          ? "bg-purple-600 hover:bg-purple-700"
+                          : "bg-blue-600 hover:bg-blue-700"
+                      }`}
+                    >
+                      {isScheduling ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : scheduleMode === "now" ? (
+                        <Send className="w-4 h-4" />
+                      ) : (
+                        <CalendarClock className="w-4 h-4" />
+                      )}
+                      <span>
+                        {confirmingSchedule
+                          ? scheduleMode === "now"
+                            ? "Click again to confirm immediate send"
+                            : "Click again to confirm schedule"
+                          : scheduleMode === "now"
+                          ? `Send Immediately (${data.subscriberCount} Subscribers)`
+                          : scheduleMode === "auto"
+                          ? `Schedule for ${autoSlotFormatted || "Next Slot"}`
+                          : `Schedule for ${customFormatted || "Custom Time"}`}
+                      </span>
+                    </button>
+                  </div>
                 </div>
               </>
             )}
@@ -555,4 +605,3 @@ export default function ConfirmSendModal({
 
   return createPortal(modalContent, document.body);
 }
-

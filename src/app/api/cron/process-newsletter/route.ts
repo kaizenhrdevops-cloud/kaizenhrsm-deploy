@@ -1,11 +1,18 @@
 // src/app/api/cron/process-newsletter/route.ts
 import { NextResponse, type NextRequest } from "next/server";
-import { processNewsletterQueue } from "@/app/admin/blog/newsletterActions";
+import { processNewsletterQueue } from "@/lib/newsletter-queue";
 import { getServiceClient } from "@/lib/supabase-admin";
 
 // ADD THIS LINE EXACTLY HERE
 export const dynamic = 'force-dynamic';
 // ← this tells Next.js: “never run this API route at build time”
+
+// Vercel Hobby allows up to 60s per function invocation.
+export const maxDuration = 60;
+
+// Stop starting new newsletter batches after this long (leaves headroom
+// for DB writes before the 60s hard limit).
+const QUEUE_TIME_BUDGET_MS = 40_000;
 
 // --- NEW: Maintenance Function ---
 async function cleanupAuditLogs() {
@@ -125,23 +132,30 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // 2. Run Maintenance Tasks (NEW)
-    // We run this *before* or *alongside* the newsletter queue
-    // "await" ensures it finishes before we return response
-    await cleanupAuditLogs();
-    await cleanupEmailAndAbuseLogs();
+    // 2. Maintenance (log pruning) — once a day is plenty. The Vercel daily
+    // cron (user-agent "vercel-cron") or ?maintenance=1 triggers it; the
+    // frequent external scheduler (every 5 min) skips it.
+    const isDailyRun =
+      (req.headers.get("user-agent") || "").includes("vercel-cron") ||
+      req.nextUrl.searchParams.get("maintenance") === "1";
+    if (isDailyRun) {
+      await cleanupAuditLogs();
+      await cleanupEmailAndAbuseLogs();
+    }
 
-    // 3. Run Newsletter Queue
-    const result = await processNewsletterQueue();
+    // 3. Run Newsletter Queue (low-priority mail, quota-aware)
+    const result = await processNewsletterQueue({
+      timeBudgetMs: QUEUE_TIME_BUDGET_MS,
+    });
     
     if (!result.success) {
       console.error("Cron Job Error:", result.message);
-      return NextResponse.json({ error: result.message }, { status: 500 });
+      return NextResponse.json({ error: result.message, newsletter: result }, { status: 500 });
     }
 
     return NextResponse.json({ 
       newsletter: result,
-      maintenance: "Audit log cleanup attempted" 
+      maintenance: isDailyRun ? "Log cleanup attempted" : "skipped",
     }, { status: 200 });
 
   } catch (error: any) {
