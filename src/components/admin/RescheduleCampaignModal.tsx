@@ -4,11 +4,9 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import {
   CalendarClock,
-  Clock,
   Send,
   Loader2,
   X,
-  Check,
 } from "lucide-react";
 import {
   updateCampaignSchedule,
@@ -16,6 +14,7 @@ import {
 } from "@/app/admin/blog/newsletterActions";
 import type { CampaignWithDetails } from "@/types/newsletter";
 import { formatDateTime } from "@/components/admin/NewsletterBadges";
+import DateTimePicker from "@/components/admin/DateTimePicker";
 import { toast } from "react-hot-toast";
 
 type Props = {
@@ -29,7 +28,7 @@ function toDatetimeLocalString(date: Date): string {
   const pad = (n: number) => n.toString().padStart(2, "0");
   const year = date.getFullYear();
   const month = pad(date.getMonth() + 1);
-  const day = pad(date.getDate());
+  const day = date.getDate();
   const hours = pad(date.getHours());
   const minutes = pad(date.getMinutes());
   return `${year}-${month}-${day}T${hours}:${minutes}`;
@@ -40,13 +39,6 @@ const getPresetTonight = (hour: number) => {
   if (d.getHours() >= hour) {
     d.setDate(d.getDate() + 1);
   }
-  d.setHours(hour, 0, 0, 0);
-  return toDatetimeLocalString(d);
-};
-
-const getPresetTomorrow = (hour: number) => {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
   d.setHours(hour, 0, 0, 0);
   return toDatetimeLocalString(d);
 };
@@ -96,7 +88,20 @@ export default function RescheduleCampaignModal({
   if (!mounted || !isOpen || !campaign) return null;
 
   const handleUpdate = async () => {
-    if (!scheduledDateTime) return;
+    if (!scheduledDateTime) {
+      toast.error("Please pick a scheduled date and time.");
+      return;
+    }
+    const targetTime = new Date(scheduledDateTime).getTime();
+    if (isNaN(targetTime)) {
+      toast.error("Invalid scheduled date/time.");
+      return;
+    }
+    if (targetTime <= Date.now()) {
+      toast.error("Scheduled time must be in the future, or click 'Send Now Instead'.");
+      return;
+    }
+
     setIsSaving(true);
     const toastId = toast.loading("Updating scheduled time...");
     try {
@@ -137,19 +142,6 @@ export default function RescheduleCampaignModal({
     }
   };
 
-  const previewFormatted = () => {
-    try {
-      const d = new Date(scheduledDateTime);
-      if (isNaN(d.getTime())) return "Invalid date";
-      return d.toLocaleString("en-MY", {
-        dateStyle: "full",
-        timeStyle: "short",
-      });
-    } catch {
-      return scheduledDateTime;
-    }
-  };
-
   const modalContent = (
     <>
       <div
@@ -158,13 +150,13 @@ export default function RescheduleCampaignModal({
       />
       <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
         <div
-          className="pointer-events-auto w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col"
+          className="pointer-events-auto w-full max-w-2xl max-h-[92vh] overflow-y-auto bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+          <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 sticky top-0 z-10 backdrop-blur-sm">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-blue-600 rounded-xl text-white shadow-md">
+              <div className="p-2.5 bg-teal-600 rounded-xl text-white shadow-md">
                 <CalendarClock size={20} />
               </div>
               <div>
@@ -207,70 +199,20 @@ export default function RescheduleCampaignModal({
               </div>
             </div>
 
-            {/* Quick Presets */}
+            {/* Interactive DateTimePicker */}
             <div>
               <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2 block">
-                Quick Presets
+                Select Exact Date &amp; Time (MYT GMT+8)
               </label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setScheduledDateTime(getPresetTonight(22))}
-                  className="px-3 py-2 text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/40 text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-colors border border-transparent hover:border-blue-200 dark:hover:border-blue-800 text-left flex items-center justify-between cursor-pointer"
-                >
-                  <span>Tonight @ 10:00 PM</span>
-                  <Clock size={13} className="opacity-60" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setScheduledDateTime(getPresetTonight(23))}
-                  className="px-3 py-2 text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/40 text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-colors border border-transparent hover:border-blue-200 dark:hover:border-blue-800 text-left flex items-center justify-between cursor-pointer"
-                >
-                  <span>Tonight @ 11:00 PM</span>
-                  <Clock size={13} className="opacity-60" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setScheduledDateTime(getPresetTomorrow(9))}
-                  className="px-3 py-2 text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/40 text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-colors border border-transparent hover:border-blue-200 dark:hover:border-blue-800 text-left flex items-center justify-between cursor-pointer"
-                >
-                  <span>Tomorrow @ 9:00 AM</span>
-                  <Clock size={13} className="opacity-60" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setScheduledDateTime(getPresetTomorrow(22))}
-                  className="px-3 py-2 text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/40 text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-colors border border-transparent hover:border-blue-200 dark:hover:border-blue-800 text-left flex items-center justify-between cursor-pointer"
-                >
-                  <span>Tomorrow @ 10:00 PM</span>
-                  <Clock size={13} className="opacity-60" />
-                </button>
-              </div>
-            </div>
-
-            {/* Custom Datetime Input */}
-            <div>
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2 block">
-                Select Date & Time
-              </label>
-              <input
-                type="datetime-local"
+              <DateTimePicker
                 value={scheduledDateTime}
-                onChange={(e) => setScheduledDateTime(e.target.value)}
-                min={toDatetimeLocalString(new Date())}
-                className="w-full px-4 py-2.5 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-slate-900 dark:text-white"
+                onChange={setScheduledDateTime}
               />
-              {scheduledDateTime && (
-                <p className="mt-2 text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1.5 font-medium">
-                  <Check size={14} />
-                  New scheduled time: {previewFormatted()}
-                </p>
-              )}
             </div>
           </div>
 
           {/* Footer Actions */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 sticky bottom-0 z-10 backdrop-blur-sm">
             <button
               type="button"
               onClick={handleSendNow}
@@ -299,7 +241,7 @@ export default function RescheduleCampaignModal({
                 type="button"
                 onClick={handleUpdate}
                 disabled={isSaving || isSendingNow || !scheduledDateTime}
-                className="inline-flex items-center justify-center gap-1.5 px-5 py-2 text-xs font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 shadow-sm transition-colors cursor-pointer"
+                className="inline-flex items-center justify-center gap-1.5 px-5 py-2 text-xs font-semibold text-white bg-teal-600 rounded-xl hover:bg-teal-700 disabled:opacity-50 shadow-sm transition-colors cursor-pointer"
               >
                 {isSaving ? (
                   <Loader2 size={14} className="animate-spin" />
