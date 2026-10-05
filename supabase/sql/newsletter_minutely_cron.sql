@@ -24,8 +24,8 @@ create extension if not exists pg_net;
 --    Safe to re-run: updates the secret if it already exists.
 do $$
 declare
-  v_url    text := 'https://www.kaizenhrms.com';   -- e.g. https://www.example.com (no trailing slash)
-  v_secret text := 'mytestsecret123';
+  v_url    text := 'https://YOUR-DOMAIN.com';   -- e.g. https://www.example.com (no trailing slash)
+  v_secret text := 'YOUR_CRON_SECRET';
   v_id     uuid;
 begin
   select id into v_id from vault.secrets where name = 'newsletter_cron_url';
