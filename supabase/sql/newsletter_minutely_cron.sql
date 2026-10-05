@@ -18,9 +18,31 @@ create extension if not exists pg_cron;
 create extension if not exists pg_net;
 
 -- 2. Store URL + secret in Vault (never hard-code the secret in the job)
---    Replace placeholders. CRON_SECRET must match the Vercel env var.
-select vault.create_secret('https://YOUR-DOMAIN.com', 'newsletter_cron_url');
-select vault.create_secret('YOUR_CRON_SECRET', 'newsletter_cron_secret');
+--    Replace the placeholders IN THE SQL EDITOR ONLY — don't save real
+--    values into this file (it's committed to git).
+--    CRON_SECRET must match the Vercel env var.
+--    Safe to re-run: updates the secret if it already exists.
+do $$
+declare
+  v_url    text := 'https://www.kaizenhrms.com';   -- e.g. https://www.example.com (no trailing slash)
+  v_secret text := 'mytestsecret123';
+  v_id     uuid;
+begin
+  select id into v_id from vault.secrets where name = 'newsletter_cron_url';
+  if v_id is null then
+    perform vault.create_secret(v_url, 'newsletter_cron_url');
+  else
+    perform vault.update_secret(v_id, v_url);
+  end if;
+
+  v_id := null;
+  select id into v_id from vault.secrets where name = 'newsletter_cron_secret';
+  if v_id is null then
+    perform vault.create_secret(v_secret, 'newsletter_cron_secret');
+  else
+    perform vault.update_secret(v_id, v_secret);
+  end if;
+end $$;
 
 -- 3. Schedule every minute (re-running replaces the job of the same name)
 select cron.schedule(
