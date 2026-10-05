@@ -452,21 +452,8 @@ export async function processNewsletterQueue(
     quotaExhausted: false,
   };
 
-  let allowance: number;
-  try {
-    ({ newsletterAllowance: allowance } = await getEmailQuota(supabase));
-  } catch (err: unknown) {
-    return { ...totals, success: false, message: (err as Error).message };
-  }
-
-  if (allowance <= 0) {
-    return {
-      ...totals,
-      quotaExhausted: true,
-      message: "Newsletter share of today's email quota is used up; continuing tomorrow.",
-    };
-  }
-
+  // Due campaigns first: with a per-minute scheduler most runs have nothing
+  // to do, so bail out before the quota RPC.
   let query = supabase
     .from("newsletter_campaigns")
     .select("id, post_id, subject, preview_text, status")
@@ -480,6 +467,21 @@ export async function processNewsletterQueue(
   if (error) return { ...totals, success: false, message: error.message };
   if (!campaigns || campaigns.length === 0) {
     return { ...totals, message: "No campaigns due." };
+  }
+
+  let allowance: number;
+  try {
+    ({ newsletterAllowance: allowance } = await getEmailQuota(supabase));
+  } catch (err: unknown) {
+    return { ...totals, success: false, message: (err as Error).message };
+  }
+
+  if (allowance <= 0) {
+    return {
+      ...totals,
+      quotaExhausted: true,
+      message: "Newsletter share of today's email quota is used up; continuing tomorrow.",
+    };
   }
 
   for (const campaign of campaigns as CampaignRow[]) {

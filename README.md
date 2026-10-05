@@ -57,9 +57,15 @@ is 500MB).
 
 Vercel: `vercel.json` wires a **daily** safety-net cron (`/api/cron/process-newsletter`
 with `Authorization: Bearer $CRON_SECRET` — set `CRON_SECRET` in env).
-Hobby plans reject anything more frequent than once per day, so the real
-hourly drain is cron-job.org (free): hourly GET with the same Authorization
-header. The hourly ping also keeps Supabase free projects awake.
+Hobby plans reject anything more frequent than once per day (it fires at
+01:00 UTC = 9:00 AM MYT), so **custom-time / auto-slot newsletters need a
+minutely trigger**:
+
+- **Production:** run `supabase/sql/newsletter_minutely_cron.sql` once in the
+  Supabase SQL Editor (pg_cron + pg_net, every minute, secret in Vault).
+  Alternative: a cron-job.org job every 1–5 min with the same header.
+- **Local dev (`npm run dev`):** `src/instrumentation.ts` runs an in-process
+  poller every 60s automatically. Disable with `NEWSLETTER_DEV_POLLER=off`.
 
 ## Deploy (Vercel free)
 
