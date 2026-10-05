@@ -347,6 +347,15 @@ async function processCampaignBatch(
 
   for (let i = 0; i < sendable.length; i += RESEND_BATCH_SIZE) {
     const chunk = sendable.slice(i, i + RESEND_BATCH_SIZE);
+    const resolveImageUrl = (img?: string | null) => {
+      if (!img) return null;
+      const trimmed = img.trim();
+      if (!trimmed) return null;
+      if (/^https?:\/\//i.test(trimmed)) return trimmed;
+      if (trimmed.startsWith("/")) return `${siteUrl}${trimmed}`;
+      return `${siteUrl}/${trimmed}`;
+    };
+
     const payload = chunk.map((r) => ({
       from: process.env.RESEND_FROM_EMAIL!,
       to: [r.email],
@@ -354,9 +363,11 @@ async function processCampaignBatch(
       html: postNewsletterTemplate({
         postTitle: campaign.subject,
         postPreviewText: campaign.preview_text || "Read the full article...",
-        postImageUrl: post.featured_image,
+        postImageUrl: resolveImageUrl(post.featured_image),
         readMoreUrl,
         unsubscribeUrl: `${siteUrl}/api/newsletter/unsubscribe?id=${r.token}`,
+        category: post.category,
+        siteUrl,
       }),
     }));
 

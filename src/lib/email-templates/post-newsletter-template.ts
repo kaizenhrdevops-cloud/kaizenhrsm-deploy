@@ -4,100 +4,202 @@ export interface PostNewsletterData {
   postTitle: string;
   postPreviewText: string;
   postImageUrl?: string | null;
-  readMoreUrl: string; // e.g., https://yoursite.com/blog-articles/my-post
+  readMoreUrl: string; // e.g., https://yoursite.com/resources/blog-articles/my-post
   unsubscribeUrl: string; // User-specific unsubscribe link
+  category?: string | null;
+  siteUrl?: string | null;
 }
 
-// We use your brand's teal color
-const BRAND_COLOR = "#008080";
-const BRAND_COLOR_LIGHT = "#e0f2f1";
-const BRAND_COLOR_DARK = "#006666";
+/**
+ * Escapes special HTML characters to prevent broken markup or injection.
+ */
+function escapeHtml(str: string | undefined | null): string {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
 
 export const postNewsletterTemplate = (data: PostNewsletterData) => {
-  return `
-<!DOCTYPE html>
-<html>
+  const safeTitle = escapeHtml(data.postTitle || "Untitled Post");
+  const rawPreview = data.postPreviewText || "Read the full article on our website.";
+  const safePreview = escapeHtml(rawPreview).replace(/\n\s*\n/g, "<br/><br/>").replace(/\n/g, "<br/>");
+
+  // Only render image if it is a valid absolute URL (http/https)
+  const rawImage = (data.postImageUrl || "").trim();
+  const validImageUrl =
+    rawImage && (rawImage.startsWith("http://") || rawImage.startsWith("https://"))
+      ? rawImage
+      : null;
+
+  const categoryLabel = data.category
+    ? escapeHtml(data.category.toUpperCase())
+    : "KAIZENHR INSIGHTS";
+
+  const siteUrl = data.siteUrl || "https://kaizenhrms.com";
+
+  return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${data.postTitle}</title>
-  <style>
-    body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; }
-    table { border-collapse: collapse; }
-    .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
-    .header { background: linear-gradient(135deg, ${BRAND_COLOR} 0%, ${BRAND_COLOR_DARK} 100%); padding: 30px; text-align: center; }
-    .header h1 { color: #ffffff; margin: 0; font-size: 24px; font-weight: 700; }
-    .header p { color: ${BRAND_COLOR_LIGHT}; margin: 8px 0 0 0; font-size: 14px; }
-    .image-container { padding: 0; }
-    .image { width: 100%; height: auto; max-height: 300px; object-fit: cover; display: block; }
-    .content { padding: 40px 30px; }
-    .content h2 { color: #1f2937; margin: 0 0 20px 0; font-size: 24px; font-weight: 600; }
-    .content p { color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0; white-space: pre-wrap; }
-    .button-container { text-align: center; padding: 10px 0; }
-    .button { background: linear-gradient(135deg, ${BRAND_COLOR} 0%, ${BRAND_COLOR_DARK} 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px; display: inline-block; }
-    .footer { background-color: #f9fafb; padding: 30px; text-align: center; border-top: 1px solid #e5e7eb; }
-    .footer-text { color: #6b7280; font-size: 13px; line-height: 1.6; margin: 0 0 15px 0; }
-    .footer-link { color: #9ca3af; font-size: 12px; margin: 0 0 10px 0; }
-    .footer-link a { color: #9ca3af; text-decoration: underline; }
-  </style>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light" />
+  <meta name="supported-color-schemes" content="light" />
+  <title>${safeTitle}</title>
 </head>
-<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f3f4f6; padding: 20px 0;">
+<body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%;">
+  <!-- Outer wrapper -->
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f1f5f9; width: 100%; margin: 0; padding: 36px 12px;">
     <tr>
-      <td align="center">
-        <table class="container" cellpadding="0" cellspacing="0">
+      <td align="center" style="padding: 0;">
+        <!-- Card Container (600px) -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0; margin: 0 auto;">
+          
+          <!-- Header Banner -->
           <tr>
-            <td class="header">
-              <h1>KaizenHR</h1>
-              <p>Newsletter</p>
+            <td style="background: linear-gradient(135deg, #006B65 0%, #004D47 100%); background-color: #006B65; padding: 36px 32px 32px 32px; text-align: center;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center">
+                    <span style="display: inline-block; font-size: 26px; font-weight: 800; letter-spacing: 2px; color: #ffffff; text-transform: uppercase; font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif;">
+                      KaiZen<span style="color: #5eead4;">HR</span>
+                    </span>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding-top: 6px;">
+                    <span style="display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 2px; color: #ccfbf1; text-transform: uppercase; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                      Newsletter &amp; Industry Insights
+                    </span>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
+
           ${
-            data.postImageUrl
+            validImageUrl
               ? `
+          <!-- Featured Hero Image -->
           <tr>
-            <td class="image-container">
-              <img src="${data.postImageUrl}" alt="Featured Image" class="image" />
+            <td style="padding: 0; background-color: #0f172a; text-align: center; line-height: 0;">
+              <img src="${validImageUrl}" alt="${safeTitle}" width="600" style="width: 100%; max-width: 600px; height: auto; max-height: 320px; object-fit: cover; display: block; border: 0;" />
             </td>
           </tr>
           `
-              : ""
-          }
+              : `
+          <!-- Decorative Teal Accent Line when no image is present -->
           <tr>
-            <td class="content">
-              <h2>${data.postTitle}</h2>
-              <p>${data.postPreviewText}</p>
-              <table width="100%" cellpadding="0" cellspacing="0">
+            <td style="height: 4px; background: linear-gradient(90deg, #14b8a6, #0d9488, #0f766e); line-height: 4px; font-size: 0;">&nbsp;</td>
+          </tr>
+          `
+          }
+
+          <!-- Main Article Body -->
+          <tr>
+            <td style="padding: 36px 36px 28px 36px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                
+                <!-- Category Pill Badge -->
                 <tr>
-                  <td class="button-container">
-                    <a href="${data.readMoreUrl}" class="button">
-                      Read Full Article
+                  <td style="padding-bottom: 14px;">
+                    <span style="display: inline-block; background-color: #e6f4f1; color: #006b65; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 4px 12px; border-radius: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                      ${categoryLabel}
+                    </span>
+                  </td>
+                </tr>
+
+                <!-- Article Title -->
+                <tr>
+                  <td style="padding-bottom: 18px;">
+                    <h1 style="margin: 0; font-size: 24px; line-height: 1.35; font-weight: 700; color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+                      ${safeTitle}
+                    </h1>
+                  </td>
+                </tr>
+
+                <!-- Article Preview Text -->
+                <tr>
+                  <td style="padding-bottom: 32px;">
+                    <p style="margin: 0; font-size: 15px; line-height: 1.7; color: #334155; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+                      ${safePreview}
+                    </p>
+                  </td>
+                </tr>
+
+                <!-- Call to Action Button (Inlined styling prevents email clients from applying default blue links) -->
+                <tr>
+                  <td align="center" style="padding-bottom: 36px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;">
+                      <tr>
+                        <td align="center" style="border-radius: 10px; background: linear-gradient(135deg, #007A78 0%, #005C5A 100%); background-color: #007A78;">
+                          <a href="${data.readMoreUrl}" target="_blank" style="display: inline-block; padding: 15px 34px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 15px; font-weight: 600; color: #ffffff !important; text-decoration: none !important; border-radius: 10px; letter-spacing: 0.3px;">
+                            <!--[if mso]>&nbsp;&nbsp;<![endif]-->Read Full Article &rarr;<!--[if mso]>&nbsp;&nbsp;<![endif]-->
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <!-- Sign-off Section -->
+                <tr>
+                  <td style="border-top: 1px solid #e2e8f0; padding-top: 24px;">
+                    <p style="margin: 0 0 4px 0; font-size: 14px; color: #64748b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                      Best regards,
+                    </p>
+                    <p style="margin: 0; font-size: 15px; font-weight: 700; color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                      The KaizenHR Team
+                    </p>
+                    <p style="margin: 2px 0 0 0; font-size: 12px; color: #007a78; font-weight: 500; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                      Malaysia's Tier 1 Enterprise HR Solution
+                    </p>
+                  </td>
+                </tr>
+
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer Area -->
+          <tr>
+            <td style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 28px 32px; text-align: center;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center" style="font-size: 12px; line-height: 1.6; color: #64748b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                    <strong>KaiZenHR Sdn Bhd</strong><br />
+                    Suite D-05-01, 5th Floor, Block D, Plaza Mont Kiara<br />
+                    50480 Kuala Lumpur, Malaysia
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding-top: 14px; font-size: 11px; line-height: 1.5; color: #94a3b8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                    You are receiving this email because you subscribed to updates from KaizenHR.
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding-top: 12px; font-size: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                    <a href="${siteUrl}" target="_blank" style="color: #007a78 !important; text-decoration: none; font-weight: 600; margin: 0 8px;">
+                      Visit Website
+                    </a>
+                    <span style="color: #cbd5e1;">&bull;</span>
+                    <a href="${data.unsubscribeUrl}" target="_blank" style="color: #64748b !important; text-decoration: underline; margin: 0 8px;">
+                      Unsubscribe
                     </a>
                   </td>
                 </tr>
               </table>
-              <p style="margin-bottom: 0;">Best regards,<br/><strong>The KaizenHR Team</strong></p>
             </td>
           </tr>
-          <tr>
-            <td class="footer">
-              <p class="footer-text">
-                Suite D-05-01, 5th Floor, Block D, Plaza Mont Kiara<br/>
-                50480 Kuala Lumpur, Malaysia
-              </p>
-              <p class="footer-link">
-                You are receiving this email because you subscribed to our newsletter.
-              </p>
-              <p class="footer-link">
-                <a href="${data.unsubscribeUrl}">Unsubscribe</a>
-              </p>
-            </td>
-          </tr>
+
         </table>
       </td>
     </tr>
   </table>
 </body>
 </html>
-  `;
+`;
 };
