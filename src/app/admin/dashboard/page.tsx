@@ -1,6 +1,7 @@
 // src/app/admin/dashboard/page.tsx
 
 import { createClient } from "@/lib/server";
+import { getServiceClient } from "@/lib/supabase-admin";
 import { redirect } from "next/navigation";
 import dynamic from "next/dynamic";
 import { DashboardStat, ActivityItem } from "@/types/dashboard";
@@ -44,6 +45,7 @@ export default async function DashboardPage() {
   }
 
   const isSuperAdmin = profile.role === "super_admin";
+  const supabaseAdmin = getServiceClient();
 
   const now = new Date();
   const startOfThisMonth = new Date(
@@ -64,7 +66,7 @@ export default async function DashboardPage() {
   const earliestTrendDate =
     startOfLastMonth < thirtyDaysAgoISO ? startOfLastMonth : thirtyDaysAgoISO;
 
-  // 1. Fetch Data (Optimized targeted queries)
+  // 1. Fetch Data (Using service client so admin stats are never blocked by table RLS)
   const [
     postsResult,
     totalPostsResult,
@@ -73,48 +75,51 @@ export default async function DashboardPage() {
     recentSubsResult,
     baselineSubsResult,
     campaignsResult,
+    totalCampaignsResult,
     quotaResult,
     auditLogsResult,
   ] = await Promise.all([
-    supabase
+    supabaseAdmin
       .from("posts")
       .select("id, title, status, created_at")
       .order("created_at", { ascending: false })
       .limit(20),
-    supabase.from("posts").select("*", { count: "exact", head: true }),
-    supabase
+    supabaseAdmin.from("posts").select("*", { count: "exact", head: true }),
+    supabaseAdmin
       .from("contacts")
       .select("id, full_name, company, status, created_at")
       .order("created_at", { ascending: false })
       .limit(50),
     // Total count without pulling rows across network.
-    // Only 'subscribed' — unverified/unsubscribed never receive mail, so
-    // counting them here inflated the card vs. the send-modal count.
-    supabase
+    // Only 'subscribed' — unverified/unsubscribed never receive mail.
+    supabaseAdmin
       .from("newsletter_subscribers")
       .select("*", { count: "exact", head: true })
       .eq("status", "subscribed"),
     // Only subscribers in trend/chart window
-    supabase
+    supabaseAdmin
       .from("newsletter_subscribers")
       .select("id, status, created_at")
       .eq("status", "subscribed")
       .gte("created_at", earliestTrendDate)
       .order("created_at", { ascending: true }),
     // Baseline count for 30-day cumulative chart
-    supabase
+    supabaseAdmin
       .from("newsletter_subscribers")
       .select("*", { count: "exact", head: true })
       .eq("status", "subscribed")
       .lt("created_at", thirtyDaysAgoISO),
-    supabase
+    supabaseAdmin
       .from("newsletter_campaigns")
       .select("id, subject, status, sent_at, total_sent, sent_count, created_at")
       .order("created_at", { ascending: false })
       .limit(20),
-    supabase.rpc("get_remaining_daily_email_quota"),
+    supabaseAdmin
+      .from("newsletter_campaigns")
+      .select("*", { count: "exact", head: true }),
+    supabaseAdmin.rpc("get_remaining_daily_email_quota"),
     isSuperAdmin
-      ? supabase
+      ? supabaseAdmin
           .from("admin_audit_log")
           .select("id, action, created_at")
           .order("created_at", { ascending: false })
@@ -130,6 +135,7 @@ export default async function DashboardPage() {
   const recentSubscribers = recentSubsResult.data || [];
   const baselineSubsCount = baselineSubsResult.count || 0;
   const campaigns = campaignsResult.data || [];
+  const totalCampaignsCount = totalCampaignsResult.count ?? campaigns.length;
   const remainingQuota =
     typeof quotaResult.data === "number" ? quotaResult.data : 0;
 
@@ -189,7 +195,7 @@ export default async function DashboardPage() {
       color: "yellow",
       trend: contactTrend.trend,
       trendValue: contactTrend.value,
-      trendLabel: "vs last month",
+      trendLabel: "from Contact Us",
     },
     {
       label: "Total Subscribers",
@@ -202,15 +208,14 @@ export default async function DashboardPage() {
       trendLabel: "vs last month",
     },
     {
-      label: "Last Campaign",
-      // Code writes sent_count; total_sent is legacy and never updated.
-      value: campaigns[0]?.sent_count ?? campaigns[0]?.total_sent ?? 0,
+      label: "Newsletter Campaigns",
+      value: totalCampaignsCount,
       href: "/admin/newsletter",
       iconName: "Activity",
       color: "green",
       trend: "neutral",
       trendValue: prettyCampaignStatus(campaigns[0]?.status),
-      trendLabel: "Status",
+      trendLabel: "Latest status",
     },
   ];
 
