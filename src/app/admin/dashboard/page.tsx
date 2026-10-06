@@ -5,7 +5,6 @@ import { getServiceClient } from "@/lib/supabase-admin";
 import { redirect } from "next/navigation";
 import dynamic from "next/dynamic";
 import { DashboardStat, ActivityItem } from "@/types/dashboard";
-import Container from "@/components/layout/Container";
 import DashboardStatsGrid from "./components/DashboardStatsGrid";
 import ActivityTimeline from "./components/ActivityTimeline";
 import ContactsTable from "./components/ContactsTable";
@@ -15,8 +14,8 @@ import QuickActions from "./components/QuickActions";
 // (No ssr:false — this is a Server Component; dynamic() still code-splits.)
 const SubscriberChart = dynamic(() => import("./components/SubscriberChart"), {
   loading: () => (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
-      <div className="h-[300px] w-full animate-pulse bg-slate-100 dark:bg-slate-700/50 rounded-lg" />
+    <div className="bg-white dark:bg-[#111A2E]/85 backdrop-blur-sm rounded-2xl border border-slate-200/80 dark:border-slate-800/90 shadow-sm p-4 sm:p-6">
+      <div className="h-[220px] sm:h-[280px] w-full animate-pulse bg-slate-100 dark:bg-slate-800/50 rounded-xl" />
     </div>
   ),
 });
@@ -140,12 +139,15 @@ export default async function DashboardPage() {
     typeof quotaResult.data === "number" ? quotaResult.data : 0;
 
   // --- Helper: Trends ---
-  function getTrend(data: any[]) {
+  function getTrend(data: Array<{ created_at?: string | null }>) {
     const thisMonth = data.filter(
-      (i) => i.created_at >= startOfThisMonth
+      (i) => i.created_at && i.created_at >= startOfThisMonth
     ).length;
     const lastMonth = data.filter(
-      (i) => i.created_at >= startOfLastMonth && i.created_at < startOfThisMonth
+      (i) =>
+        i.created_at &&
+        i.created_at >= startOfLastMonth &&
+        i.created_at < startOfThisMonth
     ).length;
 
     if (lastMonth === 0)
@@ -315,38 +317,57 @@ export default async function DashboardPage() {
   // We'll limit to reasonable "feed" size (e.g. 50 items max) to keep page light.
   activities = activities.slice(0, 50);
 
+  const formattedToday = new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(now);
+
   return (
-    <Container className="py-4 sm:py-8 space-y-4 sm:space-y-8 max-w-7xl mx-auto px-4 sm:px-6">
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+    <div className="space-y-4 sm:space-y-6 lg:space-y-7 max-w-7xl mx-auto pb-6">
+      {/* Executive Welcome & Actions Header */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
-            Dashboard
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm sm:text-base">
-            Overview for {profile.full_name?.split(" ")[0]}
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+              Dashboard
+            </h1>
+            <span className="hidden md:inline-flex items-center text-xs px-2.5 py-0.5 rounded-full font-medium bg-slate-200/60 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-300/40 dark:border-slate-700/60">
+              {formattedToday}
+            </span>
+          </div>
+          <p className="text-slate-500 dark:text-slate-400 mt-1 text-xs sm:text-sm">
+            Welcome back,{" "}
+            <span className="font-semibold text-slate-700 dark:text-slate-200">
+              {profile.full_name?.split(" ")[0]}
+            </span>
+            . Overview of your platform performance today.
           </p>
         </div>
         <QuickActions isSuperAdmin={isSuperAdmin} />
       </div>
 
+      {/* Top 5 Stat Cards Grid */}
       <DashboardStatsGrid stats={stats} />
 
+      {/* 30-Day Growth Chart */}
       <div className="w-full">
         <SubscriberChart data={finalChartData} />
       </div>
 
-      <div className="grid gap-4 sm:gap-8 lg:grid-cols-3">
-        {/* Left Column: Activity Timeline */}
-        <div className="lg:col-span-1">
-          <ActivityTimeline items={activities} />
-        </div>
-
-        {/* Right Column: Contacts Table */}
-        <div className="lg:col-span-2 space-y-4 sm:space-y-8">
-          {/* We pass the larger list of contacts now so table pagination works */}
+      {/* Responsive 2-Column Split: Activity Timeline & Recent Contacts */}
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-3 items-start">
+        {/* Contacts Table (Order 1 on mobile/tablet so actionable items come first, 2 cols on desktop) */}
+        <div className="order-1 lg:order-2 lg:col-span-2">
           <ContactsTable contacts={contacts} />
         </div>
+
+        {/* Activity Timeline (Order 2 on mobile/tablet, 1 col on desktop) */}
+        <div className="order-2 lg:order-1 lg:col-span-1">
+          <ActivityTimeline items={activities} />
+        </div>
       </div>
-    </Container>
+    </div>
   );
 }

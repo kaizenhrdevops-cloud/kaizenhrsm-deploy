@@ -15,7 +15,7 @@ export default function AdminLayout({
 
   return (
     // Main container now stacks vertically
-    <div className="flex flex-col h-screen bg-gray-100 dark:bg-gray-900">
+    <div className="flex flex-col h-screen bg-slate-50 dark:bg-[#0B101D]">
       {/* Single toast system for all of /admin (react-hot-toast) */}
       <Toaster position="top-center" />
       {/* Navbar is now a direct child, it will be full-width by default */}
