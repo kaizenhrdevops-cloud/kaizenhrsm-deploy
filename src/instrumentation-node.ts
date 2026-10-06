@@ -17,7 +17,9 @@ declare global {
 
 export function startNewsletterDevPoller() {
   if (process.env.NODE_ENV !== "development") return;
-  if (process.env.NEWSLETTER_DEV_POLLER === "off") return;
+  // Opt-in only: prevents local `npm run dev` from colliding with production
+  // pg_cron when sharing the same Supabase database.
+  if (process.env.NEWSLETTER_DEV_POLLER !== "true") return;
   // Guard against duplicate intervals on hot reload.
   if (globalThis.__newsletterDevPoller) return;
 

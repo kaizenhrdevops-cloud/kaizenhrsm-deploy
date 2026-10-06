@@ -268,13 +268,14 @@ async function processCampaignBatch(
 ): Promise<BatchResult> {
   const result: BatchResult = { sent: 0, failed: 0, skipped: 0, retryable: 0, done: false };
 
-  // Candidate rows: FIFO; stale `sending` rows (retryable / interrupted
-  // tick) are picked up again.
+  // Candidate rows: FIFO.
+  // We only claim rows with status = 'queued'. Rows with status = 'sending'
+  // are actively being processed by a worker and MUST NOT be double-claimed.
   const { data: candidates, error: candError } = await supabase
     .from("newsletter_send_log")
     .select("id, email, subscriber_id, status")
     .eq("campaign_id", campaign.id)
-    .in("status", ["queued", "sending"])
+    .eq("status", "queued")
     .order("created_at", { ascending: true })
     .limit(limit);
   if (candError) throw new Error("Failed to fetch recipient batch.");
@@ -286,18 +287,21 @@ async function processCampaignBatch(
 
   // Atomically claim the queued rows: only rows still `queued` flip, so an
   // overlapping run (cron + "Send now") can't grab the same recipients.
-  const queuedIds = candidates.filter((r) => r.status === "queued").map((r) => r.id);
-  let claimedIds = new Set(candidates.filter((r) => r.status === "sending").map((r) => r.id));
-  if (queuedIds.length > 0) {
-    const { data: claimed } = await supabase
-      .from("newsletter_send_log")
-      .update({ status: "sending" })
-      .in("id", queuedIds)
-      .eq("status", "queued")
-      .select("id");
-    claimedIds = new Set([...claimedIds, ...(claimed ?? []).map((r) => r.id)]);
+  const queuedIds = candidates.map((r) => r.id);
+  const { data: claimed, error: claimError } = await supabase
+    .from("newsletter_send_log")
+    .update({ status: "sending" })
+    .in("id", queuedIds)
+    .eq("status", "queued")
+    .select("id");
+
+  if (claimError || !claimed || claimed.length === 0) {
+    // Another worker claimed them concurrently, nothing for this worker to do.
+    return result;
   }
-  const batch = candidates.filter((r) => claimedIds.has(r.id));
+
+  const claimedIdSet = new Set(claimed.map((r) => r.id));
+  const batch = candidates.filter((r) => claimedIdSet.has(r.id));
   if (batch.length === 0) return result;
 
   const { data: post, error: postError } = await supabase
@@ -309,7 +313,13 @@ async function processCampaignBatch(
     throw new Error(`Post ${campaign.post_id} not found for campaign.`);
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://kaizenhrms.com";
+  // In newsletter emails, never send localhost links to real email recipients!
+  const rawSiteUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
+  const siteUrl =
+    rawSiteUrl && !rawSiteUrl.includes("localhost")
+      ? rawSiteUrl.replace(/\/$/, "")
+      : "https://www.kaizenhrms.com";
+
   const postPath =
     post.category === "blog" ? "resources/blog-articles" : "company/developments";
   const readMoreUrl = `${siteUrl}/${postPath}/${post.slug}`;
@@ -410,18 +420,25 @@ async function processCampaignBatch(
 
     const sentIds = chunk.filter((_, idx) => !failedIdx.has(idx)).map((r) => r.logId);
     if (sentIds.length > 0) {
-      await supabase
+      const { data: updatedSent } = await supabase
         .from("newsletter_send_log")
         .update({ status: "sent", sent_at: nowIso(), error_message: null })
-        .in("id", sentIds);
-      result.sent += sentIds.length;
+        .in("id", sentIds)
+        .eq("status", "sending")
+        .select("id");
+      result.sent += updatedSent?.length ?? sentIds.length;
     }
     for (const [idx, message] of failedIdx) {
-      await supabase
+      // Guard: NEVER overwrite a row that has already been marked as 'sent'
+      const { data: updatedFailed } = await supabase
         .from("newsletter_send_log")
         .update({ status: "failed", error_message: message })
-        .eq("id", chunk[idx].logId);
-      result.failed++;
+        .eq("id", chunk[idx].logId)
+        .eq("status", "sending")
+        .select("id");
+      if (updatedFailed && updatedFailed.length > 0) {
+        result.failed++;
+      }
     }
   }
 
