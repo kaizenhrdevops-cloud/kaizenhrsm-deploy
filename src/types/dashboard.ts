@@ -7,7 +7,7 @@ export type DashboardStat = {
   trendValue?: string;   // e.g. "+12%"
   trendLabel?: string;   // <--- NEW FIELD: e.g. "vs last month"
   href: string;
-  iconName: "FileText" | "Users" | "Mail" | "Activity" | "ShieldAlert" | "Server"; 
+  iconName: "FileText" | "Users" | "Mail" | "Activity" | "ShieldAlert" | "Server" | "Send"; 
   color: "blue" | "green" | "yellow" | "red" | "purple" | "gray";
 };
 

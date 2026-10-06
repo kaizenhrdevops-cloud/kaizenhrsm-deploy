@@ -175,10 +175,10 @@ export default async function DashboardPage() {
       .join(" ");
   }
 
-  // --- 3. Build Stats Cards ---
+  // --- 3. Build Stats Cards (1-to-1 matching sidebar navigation modules) ---
   const stats: DashboardStat[] = [
     {
-      label: "Total Posts",
+      label: "Blog Posts",
       value: totalPostsCount,
       href: "/admin/blog",
       iconName: "FileText",
@@ -188,30 +188,30 @@ export default async function DashboardPage() {
       trendLabel: "vs last month",
     },
     {
-      label: "Pending Inquiries",
+      label: "Pending Contacts",
       value: contacts.filter((c) => c.status === "new").length,
       href: "/admin/contacts?filter=new",
-      iconName: "Users",
+      iconName: "Mail",
       color: "yellow",
       trend: contactTrend.trend,
       trendValue: contactTrend.value,
-      trendLabel: "from Contact Us",
+      trendLabel: "Awaiting reply",
     },
     {
-      label: "Total Subscribers",
+      label: "Subscribers",
       value: totalSubscribersCount,
       href: "/admin/subscribers",
-      iconName: "Mail",
+      iconName: "Users",
       color: "purple",
       trend: subTrend.trend,
       trendValue: subTrend.value,
       trendLabel: "vs last month",
     },
     {
-      label: "Newsletter Campaigns",
+      label: "Newsletter Campaign",
       value: totalCampaignsCount,
       href: "/admin/newsletter",
-      iconName: "Activity",
+      iconName: "Send",
       color: "green",
       trend: "neutral",
       trendValue: prettyCampaignStatus(campaigns[0]?.status),
@@ -276,7 +276,7 @@ export default async function DashboardPage() {
       activities.push({
         id: c.id,
         type: "contact",
-        title: `New inquiry: ${c.full_name}`,
+        title: `New contact: ${c.full_name}`,
         status: c.status || "new",
         timestamp: c.created_at || new Date().toISOString(),
         href: `/admin/contacts`,

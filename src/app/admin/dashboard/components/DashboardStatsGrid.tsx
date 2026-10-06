@@ -9,6 +9,7 @@ import {
   Activity,
   ShieldAlert,
   Server,
+  Send,
   TrendingUp,
   TrendingDown,
   Minus,
@@ -22,6 +23,7 @@ const iconMap = {
   Activity,
   ShieldAlert,
   Server,
+  Send,
 };
 
 const colorStyles = {

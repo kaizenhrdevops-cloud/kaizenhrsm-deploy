@@ -52,7 +52,7 @@ export default function ContactsTable({
     <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col h-full">
       <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
         <h3 className="font-bold text-lg text-slate-900 dark:text-white">
-          Recent Inquiries
+          Recent Contacts
         </h3>
         <Link
           href="/admin/contacts"
@@ -65,7 +65,7 @@ export default function ContactsTable({
       <div className="flex-1 overflow-auto">
         {contacts.length === 0 ? (
           <div className="p-8 text-center text-slate-500 text-sm">
-            No recent inquiries found.
+            No recent contacts found.
           </div>
         ) : (
           <>
