@@ -208,7 +208,7 @@ export default async function DashboardPage() {
       trendLabel: "vs last month",
     },
     {
-      label: "Newsletter Campaign",
+      label: "Newsletter Campaigns",
       value: totalCampaignsCount,
       href: "/admin/newsletter",
       iconName: "Send",
