@@ -25,43 +25,42 @@ function menuDescription(m: NavModule): string {
 /**
  * Build the HRMS submenu preserving CMS ordering.
  * The order returned by the API (dynamicModules) dictates the navbar display order!
- * Static defaults provide fallback icons and metadata if not customized.
+ * Static defaults provide fallback icons only for matching slugs — they are
+ * NEVER appended. The CMS is the single source of truth, so renaming a slug
+ * (e.g. `recruitment` -> `recruitment-onboarding`) must not leave a ghost
+ * static entry (`/hrms/recruitment`) in the navbar.
  */
 export function mergeHrmsSubmenus(dynamicModules: NavModule[]): SubmenuItem[] {
   if (!dynamicModules || dynamicModules.length === 0) {
     return hrmsSubmenus;
   }
 
-  // Index static items by slug for fallback icons and metadata
+  // Index static items by slug for fallback icons only (no appending).
   const staticBySlug = new Map<string, SubmenuItem>();
   for (const staticItem of hrmsSubmenus) {
     const slug = staticItem.path.replace(/^\/hrms\//, "");
     staticBySlug.set(slug, staticItem);
   }
 
-  const seen = new Set<string>();
   const result: SubmenuItem[] = [];
 
-  // 1. Follow the exact order of dynamicModules from CMS / API
+  // Follow the exact order of dynamicModules from CMS / API — nothing else.
   for (const m of dynamicModules) {
     if (!m?.slug) continue;
-    seen.add(m.slug);
     const staticMatch = staticBySlug.get(m.slug);
 
+    // Empty icon_name => reuse the curated static icon so older rows keep
+    // their look; a typed name (valid or not) resolves via lucide.
+    const hasCustomIcon = !!(m.icon_name || "").trim();
+
     result.push({
-      icon: resolveHrmsIcon(m.icon_name) || staticMatch?.icon,
+      icon: hasCustomIcon
+        ? resolveHrmsIcon(m.icon_name)
+        : (staticMatch?.icon ?? resolveHrmsIcon(m.icon_name)),
       name: m.name,
       description: menuDescription(m) || staticMatch?.description || "Explore this HRMS module",
       path: `/hrms/${m.slug}`,
     });
-  }
-
-  // 2. Append any static modules that weren't in CMS (offline/fallback safety)
-  for (const staticItem of hrmsSubmenus) {
-    const slug = staticItem.path.replace(/^\/hrms\//, "");
-    if (!seen.has(slug)) {
-      result.push(staticItem);
-    }
   }
 
   return result;

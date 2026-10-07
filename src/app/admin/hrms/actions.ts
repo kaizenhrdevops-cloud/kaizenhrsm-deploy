@@ -317,6 +317,42 @@ export async function saveHrmsModule(
     }
   }
 
+  // Keep the navbar order list in sync when the slug is renamed
+  // (e.g. `recruitment` -> `recruitment-onboarding`). Otherwise the old
+  // slug lingers in system_settings and the new slug falls back to
+  // unordered positioning.
+  if (originalSlug !== cleanSlug) {
+    try {
+      const { data: orderSetting } = await supabase
+        .from("system_settings")
+        .select("value")
+        .eq("key", "hrms_module_order")
+        .maybeSingle();
+
+      if (orderSetting?.value) {
+        const currentList: string[] = Array.isArray(orderSetting.value)
+          ? (orderSetting.value as string[])
+          : JSON.parse(orderSetting.value as string);
+        let nextList: string[];
+        const idx = currentList.indexOf(originalSlug);
+        if (idx !== -1) {
+          nextList = [...currentList];
+          nextList[idx] = cleanSlug;
+          // Dedupe in case the target slug already existed.
+          nextList = [...new Set(nextList)];
+        } else if (!currentList.includes(cleanSlug)) {
+          nextList = [...currentList, cleanSlug];
+        } else {
+          nextList = currentList;
+        }
+        await supabase
+          .from("system_settings")
+          .update({ value: nextList, updated_at: new Date().toISOString() })
+          .eq("key", "hrms_module_order");
+      }
+    } catch {}
+  }
+
   revalidatePath("/admin/hrms");
   revalidatePath(`/hrms/${cleanSlug}`);
   revalidatePath("/api/hrms-nav");
