@@ -35,6 +35,7 @@ type RelatedModule = {
   name: string;
   description: string;
   link: string;
+  imageSrc?: string;
 };
 
 // Hero frame per saved ratio (kept as literals so Tailwind generates them).

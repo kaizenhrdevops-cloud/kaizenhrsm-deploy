@@ -361,6 +361,9 @@ export async function saveHrmsModule(
   if (originalSlug !== cleanSlug) {
     revalidatePath(`/hrms/${originalSlug}`);
   }
+  // Card thumbnail / name / tagline appear in RelatedModulesSection on
+  // *other* module pages, so purge the whole /hrms layout too.
+  revalidatePath("/hrms", "layout");
   revalidatePath("/api/hrms-nav");
   return { success: true, message: "Module saved.", slug: cleanSlug };
 }

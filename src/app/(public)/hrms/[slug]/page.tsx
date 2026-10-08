@@ -129,11 +129,32 @@ export default async function HrmsModulePage({
     .eq("module_slug", slug)
     .order("order_index", { ascending: true });
 
-  const { data: allModules } = await supabase
-    .from("hrms_modules")
-    .select("slug, name, tagline, image_src")
-    .eq("status", "published")
-    .order("slug", { ascending: true });
+  // card_image_src may not exist until its migration is applied — try
+  // with it first, fall back to image_src-only so the page never breaks.
+  let allModules: {
+    slug: string;
+    name: string;
+    tagline: string;
+    image_src: string;
+    card_image_src?: string;
+  }[] | null = null;
+  {
+    const withCard = await supabase
+      .from("hrms_modules")
+      .select("slug, name, tagline, image_src, card_image_src")
+      .eq("status", "published")
+      .order("slug", { ascending: true });
+    if (!withCard.error && withCard.data) {
+      allModules = withCard.data as unknown as typeof allModules;
+    } else {
+      const withoutCard = await supabase
+        .from("hrms_modules")
+        .select("slug, name, tagline, image_src")
+        .eq("status", "published")
+        .order("slug", { ascending: true });
+      allModules = (withoutCard.data as unknown as typeof allModules) || [];
+    }
+  }
 
   const coreFeatures = ((features || []) as FeatureRow[]).map((f) => ({
     title: f.title,
@@ -156,7 +177,9 @@ export default async function HrmsModulePage({
     name: m.name,
     description: m.tagline,
     link: `/hrms/${m.slug}`,
-    imageSrc: m.image_src,
+    // Card thumbnail wins; fall back to hero banner (pre-migration rows
+    // have no card_image_src). Empty => RelatedModulesSection placeholder.
+    imageSrc: (m.card_image_src || "").trim() || m.image_src || "",
   }));
   // Deterministic "next 4" (no random hydration mismatch like the old
   // client-side getRandomModules).
