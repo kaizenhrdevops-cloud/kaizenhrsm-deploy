@@ -355,6 +355,12 @@ export async function saveHrmsModule(
 
   revalidatePath("/admin/hrms");
   revalidatePath(`/hrms/${cleanSlug}`);
+  // If the slug was renamed, the old URL must be purged too — otherwise
+  // Next.js ISR keeps serving the stale static page for up to `revalidate`
+  // seconds (3600) and the old slug looks like it "still exists".
+  if (originalSlug !== cleanSlug) {
+    revalidatePath(`/hrms/${originalSlug}`);
+  }
   revalidatePath("/api/hrms-nav");
   return { success: true, message: "Module saved.", slug: cleanSlug };
 }
