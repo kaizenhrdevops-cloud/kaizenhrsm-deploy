@@ -92,15 +92,15 @@ export async function generateMetadata({
 function LeaveManagementCTA() {
   return (
     <div className="bg-gradient-to-r from-blue-600 to-blue-800">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="text-center text-white">
-          <h2 className="text-3xl font-bold mb-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 md:py-16">
+        <div className="mx-auto max-w-3xl text-center text-white">
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-balance">
             Ready to Transform Your Leave Management?
           </h2>
-          <p className="text-xl mb-8 opacity-90">
+          <p className="mt-3 text-base md:text-lg opacity-90 leading-7">
             Join thousands of companies that have streamlined their HR processes
           </p>
-          <button className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+          <button className="mt-6 bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
             Request Demo
           </button>
         </div>
@@ -214,9 +214,9 @@ export default async function HrmsModulePage({
       {slug === "leave-management" && <LeaveManagementCTA />}
 
       {hrmsModule.outro_text ? (
-        <div className="bg-slate-100">
-          <Container className="py-20 text-center">
-            <p className="max-w-3xl mx-auto text-lg text-gray-600 leading-relaxed">
+        <div className="bg-slate-100 border-t border-slate-200/60">
+          <Container className="py-12 md:py-16 text-center">
+            <p className="max-w-3xl mx-auto text-base md:text-lg text-gray-600 leading-7 text-balance">
               {hrmsModule.outro_text}
             </p>
           </Container>

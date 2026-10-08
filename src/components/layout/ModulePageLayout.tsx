@@ -145,13 +145,26 @@ const ModulePageLayout = ({
   coreFeatures,
   relatedModules,
   heroClassName = "bg-white",
-  heroContentClassName = "py-20 text-center",
+  heroContentClassName,
   heroImageSrc,
   heroImageAlt,
   heroImageRatio = "4:1",
   constrainMedia = false,
   children,
 }: ModulePageLayoutProps) => {
+  const hasTagline = !!(pageDescription || "").trim();
+  const hasHeroImage = !!heroImageSrc;
+  // Compact hero rhythm: the old default (py-20 + py-20 on the first
+  // section + an always-rendered empty <p>) stacked ~200px of whitespace
+  // when tagline / hero image were empty (e.g. Configurator). Tighten by
+  // content: smallest when title-only, medium with tagline, largest with image.
+  const heroContainerClass =
+    heroContentClassName ||
+    (hasHeroImage
+      ? "py-10 md:py-14 text-center"
+      : hasTagline
+        ? "pt-10 pb-8 md:pt-14 md:pb-10 text-center"
+        : "pt-10 pb-6 md:pt-14 md:pb-8 text-center");
   // Function to render media content. When `framed`, the image fills its
   // parent frame (caller provides relative + aspect + overflow-hidden) so
   // any source aspect renders as a neat uniform block.
@@ -238,6 +251,20 @@ const ModulePageLayout = ({
     // than max-w-3xl). Matches the static pages (personnel-hub, etc.).
     const centered = layout === "center" || layout === "full-width";
 
+    const hasTitle = !!(feature.title || "").trim();
+    const hasDescription = !!(feature.description || "").trim();
+    // Tight rhythm for text-only blocks (the Configurator case): the old
+    // py-20 everywhere stacked 160px+ between consecutive centered sections.
+    const isTextOnly = !hasMedia;
+    const sectionPad = isTextOnly ? "py-10 md:py-14" : "py-12 md:py-16";
+    // First block sits right under the hero — trim its top so title ->
+    // first heading doesn't float in 200px of white.
+    const firstSectionPad = isTextOnly
+      ? "pt-6 pb-10 md:pt-8 md:pb-14"
+      : "pt-8 pb-12 md:pt-10 md:pb-16";
+    const containerPad =
+      feature.containerClassName || (index === 0 ? firstSectionPad : sectionPad);
+
     const content = (
       <div
         className={
@@ -248,20 +275,24 @@ const ModulePageLayout = ({
         {!feature.media && feature.icon && (
           <div className="text-5xl mb-5">{feature.icon}</div>
         )}
-        <h2
-          className={`text-3xl font-bold text-gray-800 mb-4 ${
-            feature.titleClassName || ""
-          }`}
-        >
-          {feature.title}
-        </h2>
-        <p
-          className={`max-w-3xl text-lg text-gray-600 leading-relaxed ${
-            centered ? "mx-auto" : ""
-          } ${feature.descriptionClassName || ""}`}
-        >
-          {feature.description}
-        </p>
+        {hasTitle ? (
+          <h2
+            className={`text-2xl md:text-3xl font-bold tracking-tight text-gray-800 text-balance ${
+              hasDescription ? "mb-3" : "mb-0"
+            } ${feature.titleClassName || ""}`}
+          >
+            {feature.title}
+          </h2>
+        ) : null}
+        {hasDescription ? (
+          <p
+            className={`max-w-3xl text-base md:text-lg text-gray-600 leading-7 text-balance ${
+              centered ? "mx-auto" : ""
+            } ${feature.descriptionClassName || ""}`}
+          >
+            {feature.description}
+          </p>
+        ) : null}
       </div>
     );
 
@@ -316,7 +347,7 @@ const ModulePageLayout = ({
         if (!hasMedia) {
           return (
             <div key={index} className={feature.bgColor}>
-              <Container className={feature.containerClassName || "py-20"}>
+              <Container className={containerPad}>
                 <div className="max-w-3xl">{content}</div>
               </Container>
             </div>
@@ -324,8 +355,8 @@ const ModulePageLayout = ({
         }
         return (
           <div key={index} className={feature.bgColor}>
-            <Container className={feature.containerClassName || "py-20"}>
-              <div className="flex flex-col lg:flex-row items-center gap-12">
+            <Container className={containerPad}>
+              <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
                 {sideMedia}
                 <div className="flex-1">{content}</div>
               </div>
@@ -339,7 +370,7 @@ const ModulePageLayout = ({
         if (!hasMedia) {
           return (
             <div key={index} className={feature.bgColor}>
-              <Container className={feature.containerClassName || "py-20"}>
+              <Container className={containerPad}>
                 <div className="max-w-3xl ml-auto">{content}</div>
               </Container>
             </div>
@@ -347,8 +378,8 @@ const ModulePageLayout = ({
         }
         return (
           <div key={index} className={feature.bgColor}>
-            <Container className={feature.containerClassName || "py-20"}>
-              <div className="flex flex-col lg:flex-row-reverse items-center gap-12">
+            <Container className={containerPad}>
+              <div className="flex flex-col lg:flex-row-reverse items-center gap-8 lg:gap-12">
                 {sideMedia}
                 <div className="flex-1">{content}</div>
               </div>
@@ -359,11 +390,13 @@ const ModulePageLayout = ({
       case "full-width":
         return (
           <div key={index} className={feature.bgColor}>
-            <div className={feature.containerClassName || "py-20"}>
+            <div className={containerPad}>
               {fullMedia}
-              <Container className="pt-12">
-                <div className="text-center">{content}</div>
-              </Container>
+              {hasTitle || hasDescription ? (
+                <Container className={hasMedia ? "pt-8" : ""}>
+                  <div className="text-center">{content}</div>
+                </Container>
+              ) : null}
             </div>
           </div>
         );
@@ -371,11 +404,14 @@ const ModulePageLayout = ({
       case "center":
       default:
         return (
-          <div key={index} className={feature.bgColor}>
-            <Container
-              className={feature.containerClassName || "py-20 text-center"}
-            >
-              {centerMedia}
+          <div
+            key={index}
+            className={`${feature.bgColor} ${
+              index === 0 ? "" : "border-t border-slate-100/80"
+            }`}
+          >
+            <Container className={`${containerPad} text-center`}>
+              {centerMedia ? <div className="mb-6">{centerMedia}</div> : null}
               {content}
             </Container>
           </div>
@@ -390,16 +426,18 @@ const ModulePageLayout = ({
       <main className="flex-grow">
         {/* === Hero Section === */}
         <div className={`pt-16 ${HERO_BG_CLASS[heroClassName] || "bg-white"}`}>
-          <Container className={heroContentClassName}>
-            <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4">
+          <Container className={heroContainerClass}>
+            <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-gray-900 text-balance">
               {pageTitle}
             </h1>
-            <p className="max-w-3xl mx-auto text-lg text-gray-600 leading-relaxed">
-              {pageDescription}
-            </p>
+            {hasTagline ? (
+              <p className="mx-auto mt-3 max-w-3xl text-base md:text-lg text-gray-600 leading-7 text-balance">
+                {pageDescription}
+              </p>
+            ) : null}
             {heroImageSrc ? (
               <div
-                className={`max-w-6xl mx-auto mt-10 overflow-hidden rounded-2xl shadow-lg relative bg-slate-100 ${HERO_ASPECT_CLASS[heroImageRatio] || HERO_ASPECT_CLASS["4:1"]}`}
+                className={`max-w-6xl mx-auto mt-8 overflow-hidden rounded-2xl shadow-lg relative bg-slate-100 ${HERO_ASPECT_CLASS[heroImageRatio] || HERO_ASPECT_CLASS["4:1"]}`}
               >
                 {canOptimize(heroImageSrc) ? (
                   <Image
