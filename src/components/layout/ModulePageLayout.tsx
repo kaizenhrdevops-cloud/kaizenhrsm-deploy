@@ -152,19 +152,15 @@ const ModulePageLayout = ({
   constrainMedia = false,
   children,
 }: ModulePageLayoutProps) => {
-  const hasTagline = !!(pageDescription || "").trim();
+  void pageDescription;
   const hasHeroImage = !!heroImageSrc;
-  // Compact hero rhythm: the old default (py-20 + py-20 on the first
-  // section + an always-rendered empty <p>) stacked ~200px of whitespace
-  // when tagline / hero image were empty (e.g. Configurator). Tighten by
-  // content: smallest when title-only, medium with tagline, largest with image.
+  // Hero shows title only — tagline is card-only (Related Modules) + meta.
+  // Compact rhythm: title-only padding, larger when a banner image exists.
   const heroContainerClass =
     heroContentClassName ||
     (hasHeroImage
       ? "py-10 md:py-14 text-center"
-      : hasTagline
-        ? "pt-10 pb-8 md:pt-14 md:pb-10 text-center"
-        : "pt-10 pb-6 md:pt-14 md:pb-8 text-center");
+      : "pt-10 pb-6 md:pt-14 md:pb-8 text-center");
   // Function to render media content. When `framed`, the image fills its
   // parent frame (caller provides relative + aspect + overflow-hidden) so
   // any source aspect renders as a neat uniform block.
@@ -430,11 +426,6 @@ const ModulePageLayout = ({
             <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-gray-900 text-balance">
               {pageTitle}
             </h1>
-            {hasTagline ? (
-              <p className="mx-auto mt-3 max-w-3xl text-base md:text-lg text-gray-600 leading-7 text-balance">
-                {pageDescription}
-              </p>
-            ) : null}
             {heroImageSrc ? (
               <div
                 className={`max-w-6xl mx-auto mt-8 overflow-hidden rounded-2xl shadow-lg relative bg-slate-100 ${HERO_ASPECT_CLASS[heroImageRatio] || HERO_ASPECT_CLASS["4:1"]}`}

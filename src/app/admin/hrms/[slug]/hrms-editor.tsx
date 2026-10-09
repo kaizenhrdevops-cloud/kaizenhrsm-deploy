@@ -190,20 +190,12 @@ export default function HrmsEditor({
           />
         </div>
         <Field
-          label="Hero subtitle (tagline)"
-          textarea
-          rows={2}
-          value={module.tagline}
-          onChange={(v) => set("tagline", v)}
-          hint="Shown under the title and used as the page meta description."
-        />
-        <Field
           label="Hero background"
           select
           value={module.hero_bg}
           onChange={(v) => set("hero_bg", v)}
           options={HERO_BG_OPTIONS}
-          hint="Background of the top hero band (title, subtitle, banner)."
+          hint="Background of the top hero band (title, banner)."
         />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field
@@ -213,7 +205,7 @@ export default function HrmsEditor({
             value={module.nav_description}
             onChange={(v) => set("nav_description", v)}
             placeholder="e.g. Manage apps, roles and access in one place"
-            hint="1–2 lines under the name in the HRMS menu. Empty = tagline, truncated."
+            hint="1–2 lines under the name in the HRMS menu. Empty = card description, truncated."
           />
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -260,6 +252,14 @@ export default function HrmsEditor({
           ratios={CARD_RATIOS}
           resolutionHint="Recommended: min 800×600, 4:3 aspect ratio for best results on desktop, tablet and mobile."
           hint="Used in the 'Related Modules' cards on other pages. Falls back to hero banner image if empty."
+        />
+        <Field
+          label="Card description"
+          textarea
+          rows={2}
+          value={module.tagline}
+          onChange={(v) => set("tagline", v)}
+          hint="Shown only in the 'Related Modules' cards on other pages. Not shown on this module's own page. Also used as the page meta description."
         />
         <Field
           label="Closing paragraph (optional)"
