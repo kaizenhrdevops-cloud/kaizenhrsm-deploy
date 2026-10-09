@@ -61,6 +61,7 @@ function SortableModuleRow({
   onDelete,
   isPending,
   mounted,
+  highlighted,
 }: {
   module: ModuleRow;
   index: number;
@@ -71,6 +72,7 @@ function SortableModuleRow({
   onDelete: (module: ModuleRow) => void;
   isPending: boolean;
   mounted: boolean;
+  highlighted?: boolean;
 }) {
   const {
     attributes,
@@ -93,10 +95,13 @@ function SortableModuleRow({
     <div
       ref={setNodeRef}
       style={style}
-      className={`p-3 sm:p-3.5 bg-white dark:bg-slate-800 rounded-xl border transition-all ${
+      id={`hrms-module-${module.slug}`}
+      className={`p-3 sm:p-3.5 bg-white dark:bg-slate-800 rounded-xl border transition-all scroll-mt-24 ${
         isDragging
           ? "border-blue-500 shadow-xl opacity-90 scale-[1.01] ring-2 ring-blue-500/20"
-          : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 shadow-sm"
+          : highlighted
+            ? "border-blue-500 ring-2 ring-blue-500/40 shadow-md"
+            : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 shadow-sm"
       }`}
     >
       {/* Top row: Drag handle + Rank + Title (always visible) */}
@@ -257,10 +262,35 @@ export default function HrmsListClient({ modules }: { modules: ModuleRow[] }) {
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "idle">("saved");
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [highlightSlug, setHighlightSlug] = useState<string | null>(null);
   const isSavingRef = useRef(false);
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  // Return-to-last-edited: the editor stores its slug in sessionStorage on
+  // mount + save, so coming back here scrolls to that row (not top) and
+  // flashes it. Cleared after use so fresh visits still start at the top.
+  useEffect(() => {
+    let slug: string | null = null;
+    try {
+      slug = sessionStorage.getItem("hrms-last-edited");
+      sessionStorage.removeItem("hrms-last-edited");
+    } catch {}
+    if (!slug) return;
+    setHighlightSlug(slug);
+    // Wait a tick for the rows to render before scrolling.
+    const t = window.setTimeout(() => {
+      document
+        .getElementById(`hrms-module-${slug}`)
+        ?.scrollIntoView({ block: "center", behavior: "smooth" });
+    }, 100);
+    const clear = window.setTimeout(() => setHighlightSlug(null), 3000);
+    return () => {
+      window.clearTimeout(t);
+      window.clearTimeout(clear);
+    };
   }, []);
 
   // Sync state if server props change (unless currently saving)
@@ -533,10 +563,16 @@ export default function HrmsListClient({ modules }: { modules: ModuleRow[] }) {
                     total={items.length}
                     onMove={handleMove}
                     onMoveToExtremity={handleMoveToExtremity}
-                    onEdit={(slug) => router.push(`/admin/hrms/${slug}`)}
+                    onEdit={(slug) => {
+                      try {
+                        sessionStorage.setItem("hrms-last-edited", slug);
+                      } catch {}
+                      router.push(`/admin/hrms/${slug}`);
+                    }}
                     onDelete={(m) => setModuleToDelete(m)}
                     isPending={isPending}
                     mounted={mounted}
+                    highlighted={highlightSlug === module.slug}
                   />
                 ))}
               </div>
@@ -552,7 +588,12 @@ export default function HrmsListClient({ modules }: { modules: ModuleRow[] }) {
           searchKeys={["name", "slug"]}
           pagination
           itemsPerPage={15}
-          onRowClick={(m) => router.push(`/admin/hrms/${m.slug}`)}
+          onRowClick={(m) => {
+            try {
+              sessionStorage.setItem("hrms-last-edited", m.slug);
+            } catch {}
+            router.push(`/admin/hrms/${m.slug}`);
+          }}
           actions={(m) => (
             <button
               onClick={(e) => {

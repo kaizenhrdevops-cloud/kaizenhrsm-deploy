@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { deleteStorageObjectByUrl } from "@/lib/storage-upload";
@@ -103,6 +103,14 @@ export default function HrmsEditor({
   // the page without saving can't orphan the live image.
   const lastSavedImageRef = useRef(initialModule.image_src);
 
+  // Remember which module is being edited so "Back to modules" can scroll
+  // back to it instead of dropping the user at the top of the 21-row list.
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("hrms-last-edited", initialModule.slug);
+    } catch {}
+  }, [initialModule.slug]);
+
   const set = (key: keyof HrmsModuleInput, value: string) =>
     setModule((prev) => ({ ...prev, [key]: value }));
 
@@ -125,6 +133,10 @@ export default function HrmsEditor({
     setIsSaving(true);
     const result = await saveHrmsModule(initialModule.slug, module, features);
     if (result.success) {
+      try {
+        // Keep the return-target in sync when the slug itself was renamed.
+        sessionStorage.setItem("hrms-last-edited", result.slug || module.slug);
+      } catch {}
       toast.success("Module saved.");
       if (lastSavedImageRef.current !== module.image_src) {
         void deleteStorageObjectByUrl(lastSavedImageRef.current);

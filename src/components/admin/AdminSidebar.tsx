@@ -18,6 +18,7 @@ import {
   Shield,
   ScrollText,
   Send, // <-- 1. IMPORT THE NEW ICON
+  PanelLeftClose,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
@@ -29,9 +30,14 @@ type Profile = {
 export default function AdminSidebar({
   isOpen,
   onClose,
+  isCollapsed = false,
+  onCollapse,
 }: {
   isOpen: boolean;
   onClose: () => void;
+  /** Desktop (>= lg) collapse — hides the sidebar so tables get full width. */
+  isCollapsed?: boolean;
+  onCollapse?: () => void;
 }) {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -59,11 +65,14 @@ export default function AdminSidebar({
     fetchData();
   }, [supabase]);
 
+  // Below lg: fixed overlay toggled by translate. At lg+: static column
+  // that can be collapsed to `display: none` for full-width tables.
   const sidebarClasses = `
-    fixed inset-y-0 left-0 z-40 h-screen w-56 px-3 py-3 text-white bg-gray-800
+    fixed inset-y-0 left-0 z-40 h-screen w-56 shrink-0 px-3 py-3 text-white bg-gray-800
     transform transition-transform duration-300 ease-in-out overflow-y-auto
-    md:relative md:translate-x-0
+    lg:relative lg:translate-x-0
     ${isOpen ? "translate-x-0" : "-translate-x-full"}
+    ${isCollapsed ? "lg:hidden" : ""}
   `;
 
   // Helper function to check if link is active
@@ -87,6 +96,7 @@ export default function AdminSidebar({
     return (
       <Link
         href={href}
+        onClick={onClose}
         className={`flex items-center justify-between px-2 py-1.5 space-x-2 rounded-md transition-colors text-sm ${
           active ? "bg-blue-600 text-white" : "hover:bg-gray-700 text-gray-200"
         }`}
@@ -116,13 +126,29 @@ export default function AdminSidebar({
 
   return (
     <>
-      <aside className={sidebarClasses}>
+      <aside className={sidebarClasses} aria-hidden={isCollapsed}>
         <div className="flex items-center justify-between mb-6">
           <div className="text-xl font-bold">
-            <Link href="/admin/dashboard">KaizenHRMS</Link>
+            <Link href="/admin/dashboard" onClick={onClose}>
+              KaizenHRMS
+            </Link>
           </div>
-          <button onClick={onClose} className="md:hidden">
+          {/* Mobile/tablet close */}
+          <button
+            onClick={onClose}
+            className="lg:hidden p-1 rounded hover:bg-gray-700"
+            aria-label="Close menu"
+          >
             <X size={20} />
+          </button>
+          {/* Desktop collapse — frees full width for cramped tables */}
+          <button
+            onClick={onCollapse}
+            className="hidden lg:block p-1 rounded text-gray-400 hover:text-white hover:bg-gray-700"
+            aria-label="Collapse sidebar"
+            title="Collapse sidebar"
+          >
+            <PanelLeftClose size={20} />
           </button>
         </div>
 
@@ -210,10 +236,10 @@ export default function AdminSidebar({
         </nav>
       </aside>
 
-      {/* Overlay for mobile */}
+      {/* Overlay below lg */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/50 md:hidden"
+          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
           onClick={onClose}
         />
       )}

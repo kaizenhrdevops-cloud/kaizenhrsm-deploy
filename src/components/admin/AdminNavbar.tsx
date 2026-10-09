@@ -58,11 +58,12 @@ export default function AdminNavbar({
   return (
     <nav className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 bg-gradient-to-r from-[#0D1B2A] to-[#1B263B] shadow-md sm:px-6 lg:px-8 border-b border-slate-800">
       <div className="flex items-center space-x-4">
-        {/* Hamburger Menu for Mobile */}
+        {/* Hamburger: opens overlay below lg, collapses sidebar at lg+ */}
         <button
           onClick={onMenuClick}
-          className="p-2 text-slate-300 hover:bg-slate-800/50 rounded-lg transition-colors md:hidden"
+          className="p-2 text-slate-300 hover:bg-slate-800/50 rounded-lg transition-colors"
           aria-label="Toggle menu"
+          title="Toggle sidebar"
         >
           <Menu size={24} />
         </button>
