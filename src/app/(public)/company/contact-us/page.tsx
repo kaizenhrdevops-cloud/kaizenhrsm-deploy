@@ -9,6 +9,12 @@ import type { PublicSettings } from "@/lib/public-settings";
 import { useSettings } from "@/components/layout/SettingsProvider";
 import ContactInfoCards from "./ContactInfoCards";
 import ContactForm, { type SubmitStatus } from "./ContactForm";
+import {
+  typeBody,
+  typeDisplay,
+  typeH2,
+  typeLead,
+} from "@/components/ui/typography";
 
 const ContactUsPage = () => {
   // Settings come from (public)/layout's provider (one cached read per
@@ -37,11 +43,11 @@ const ContactUsPage = () => {
         {/* Hero Section */}
         <div className="relative overflow-hidden bg-gradient-to-br from-blue-900 via-blue-800 to-[#008080] text-white">
           <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-10"></div>
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-20 text-center">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold mb-6 tracking-tight">
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-24 md:pt-32 md:pb-28 text-center">
+            <h1 className={`${typeDisplay} mb-6`}>
               Let&apos;s Start a Conversation
             </h1>
-            <p className="text-xl md:text-2xl text-blue-100 mb-8 max-w-3xl mx-auto leading-relaxed font-light">
+            <p className={`${typeLead} text-blue-100 max-w-3xl mx-auto`}>
               Whether you have questions about our modules or need a custom
               solution, our team is ready to help you transform your HR.
             </p>
@@ -49,7 +55,7 @@ const ContactUsPage = () => {
         </div>
 
         {/* Main Content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
           {/* Status Message */}
           {submitStatus.type && (
             <div
@@ -65,7 +71,7 @@ const ContactUsPage = () => {
                 <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
               )}
               <p
-                className={`text-base font-medium ${
+                className={`${typeBody} font-medium ${
                   submitStatus.type === "success"
                     ? "text-green-800"
                     : "text-red-800"
@@ -91,10 +97,10 @@ const ContactUsPage = () => {
                   <div className="w-20 h-20 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-6 text-blue-600 shadow-sm">
                     <Send className="w-10 h-10 transform -rotate-12 ml-1" />
                   </div>
-                  <h2 className="text-3xl font-extrabold text-gray-900 mb-3">
+                  <h2 className={`${typeH2} text-gray-900 mb-3`}>
                     Send Us a Message
                   </h2>
-                  <p className="text-gray-600 text-lg">
+                  <p className={`${typeLead} text-gray-600`}>
                     Fill out the form below and we&apos;ll get back to you
                     shortly.
                   </p>

@@ -2,6 +2,12 @@
 
 import { MapPin, Mail, Phone } from "lucide-react";
 import type { PublicSettings } from "@/lib/public-settings";
+import {
+  typeBody,
+  typeH2,
+  typeH3,
+  typeLead,
+} from "@/components/ui/typography";
 
 function InfoCard({
   icon,
@@ -22,7 +28,7 @@ function InfoCard({
         {icon}
       </div>
       <div>
-        <h3 className="text-xl font-bold text-gray-900 mb-2">{title}</h3>
+        <h3 className={`${typeH3} text-gray-900 mb-2`}>{title}</h3>
         {children}
       </div>
     </div>
@@ -40,10 +46,10 @@ export default function ContactInfoCards({
   return (
     <div className="space-y-12">
       <div>
-        <h2 className="text-4xl font-extrabold text-gray-900 mb-4 tracking-tight">
+        <h2 className={`${typeH2} text-gray-900 mb-4`}>
           Contact Information
         </h2>
-        <p className="text-lg text-gray-600 leading-relaxed max-w-md">
+        <p className={`${typeLead} text-gray-600 max-w-md`}>
           We&apos;re here to help. Reach out to us via phone, email, or visit
           our office for a coffee and a chat.
         </p>
@@ -55,7 +61,7 @@ export default function ContactInfoCards({
           iconClass="bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white"
           title="Our Office Address"
         >
-          <p className="text-gray-600 leading-relaxed text-base whitespace-pre-line">
+          <p className={`${typeBody} text-gray-600 whitespace-pre-line`}>
             {settings.contact_address}
           </p>
         </InfoCard>
@@ -67,7 +73,7 @@ export default function ContactInfoCards({
         >
           <a
             href={`mailto:${settings.contact_email}`}
-            className="text-gray-600 hover:text-blue-600 font-medium text-base transition-colors block"
+            className={`${typeBody} text-gray-600 hover:text-blue-600 font-medium transition-colors block`}
           >
             {settings.contact_email}
           </a>
@@ -80,7 +86,7 @@ export default function ContactInfoCards({
         >
           <a
             href={`tel:${settings.contact_phone}`}
-            className="text-gray-600 hover:text-blue-600 font-medium text-base transition-colors block"
+            className={`${typeBody} text-gray-600 hover:text-blue-600 font-medium transition-colors block`}
           >
             {settings.contact_phone}
           </a>

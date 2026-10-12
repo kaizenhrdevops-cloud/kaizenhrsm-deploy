@@ -4,6 +4,7 @@ import Link from "next/link";
 import Container from "../layout/Container";
 import { Star } from "lucide-react";
 import { getPublicSettings } from "@/lib/public-settings";
+import { typeDisplay, typeLead } from "../ui/typography";
 import HeroVideoFacade from "./HeroVideoFacade";
 
 const Hero = async () => {
@@ -24,14 +25,14 @@ const Hero = async () => {
               <Star className="w-4 h-4 mr-2" />
               Malaysia&apos;s Tier 1 Enterprise HR Solution
             </div>
-            <h1 className="text-5xl lg:text-6xl font-bold leading-tight">
+            <h1 className={typeDisplay}>
               Kaizen HRMS
             </h1>
-            <h2 className="text-2xl lg:text-3xl font-light opacity-90 leading-relaxed">
+            <h2 className={`${typeLead} opacity-90`}>
               Elevate your HR. Backed by 28 Years of track record and best
               practices.
             </h2>
-            <p className="text-lg opacity-80 leading-relaxed">
+            <p className={`${typeLead} opacity-80`}>
               Backed by 28 years of proven best practice, our all-in-one HR
               solution delivers unmatched depth, coverage, and reliability.
               Explore our extensive solution offerings, you&apos;ll agree we&apos;re

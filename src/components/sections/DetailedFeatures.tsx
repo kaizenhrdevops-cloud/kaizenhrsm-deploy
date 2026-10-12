@@ -4,6 +4,7 @@
 import React from "react";
 import Link from "next/link";
 import { LayoutGrid } from "lucide-react";
+import { typeSmall } from "../ui/typography";
 import { useHrmsSubmenus } from "../layout/navbar/useHrmsSubmenus";
 
 const DetailedFeatures = () => {
@@ -23,7 +24,7 @@ const DetailedFeatures = () => {
             <div className="w-9 h-9 rounded-md bg-white/[0.12] flex items-center justify-center shrink-0 text-teal-200 group-hover:text-yellow-300 transition-colors duration-200">
               <IconComponent size={18} strokeWidth={1.7} />
             </div>
-            <span className="text-[13px] sm:text-sm font-medium text-white/85 group-hover:text-white leading-snug transition-colors duration-200">
+            <span className={`${typeSmall} font-medium text-white/85 group-hover:text-white transition-colors duration-200`}>
               {module.name}
             </span>
           </Link>

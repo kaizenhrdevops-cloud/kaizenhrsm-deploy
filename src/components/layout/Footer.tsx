@@ -14,6 +14,7 @@ import type { PublicSettings } from "@/lib/public-settings";
 import { useSettings } from "./SettingsProvider";
 import { useHrmsSubmenus } from "./navbar/useHrmsSubmenus";
 import NewsletterForm from "./NewsletterForm";
+import { typeMeta, typeSmall } from "../ui/typography";
 
 const FALLBACK_SETTINGS: PublicSettings = {
   company_slogan: "Malaysia's Tier 1 Enterprise HR Solution",
@@ -63,7 +64,7 @@ const Footer = () => {
             <h2 className="text-2xl font-bold tracking-tight text-white">
               Kaizen
             </h2>
-            <p className="text-sm text-teal-100/85 leading-relaxed max-w-xs">
+            <p className={`${typeSmall} text-teal-100/85 max-w-xs`}>
               {settings.company_slogan}
             </p>
           </div>
@@ -152,7 +153,7 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-12 items-start">
           {/* Newsletter */}
           <div className="w-full">
-            <h3 className="text-lg font-semibold mb-4">
+            <h3 className="text-base font-semibold mb-4">
               Subscribe to Kaizen&apos;s Newsletter
             </h3>
             <NewsletterForm />
@@ -160,7 +161,7 @@ const Footer = () => {
 
           {/* Social Media - Dynamic List */}
           <div className="flex flex-col items-start md:items-center text-left md:text-center">
-            <h3 className="text-lg font-semibold mb-4">Follow us</h3>
+            <h3 className="text-base font-semibold mb-4">Follow us</h3>
             <div className="flex space-x-4 justify-start md:justify-center flex-wrap gap-y-4">
               {socialLinks.map(
                 (link: { platform: string; url: string }, index: number) => {
@@ -185,7 +186,7 @@ const Footer = () => {
 
           {/* Mobile App Downloads */}
           <div className="w-full">
-            <h3 className="text-lg font-semibold mb-4">
+            <h3 className="text-base font-semibold mb-4">
               Download the Mobile App
             </h3>
             <div className="grid grid-cols-2 gap-3 sm:gap-4">
@@ -197,10 +198,10 @@ const Footer = () => {
               >
                 <FaApple size={24} className="shrink-0 text-white" />
                 <div className="text-left min-w-0">
-                  <div className="text-[10px] sm:text-xs text-gray-300 truncate leading-tight">
+                  <div className={`${typeMeta} text-gray-300 truncate leading-tight`}>
                     Download on the
                   </div>
-                  <div className="font-semibold text-xs sm:text-sm text-white whitespace-nowrap truncate leading-tight">
+                  <div className="font-semibold text-sm text-white whitespace-nowrap truncate leading-tight">
                     App Store
                   </div>
                 </div>
@@ -213,10 +214,10 @@ const Footer = () => {
               >
                 <FaGooglePlay size={20} className="shrink-0 text-white" />
                 <div className="text-left min-w-0">
-                  <div className="text-[10px] sm:text-xs text-gray-300 truncate leading-tight">
+                  <div className={`${typeMeta} text-gray-300 truncate leading-tight`}>
                     GET IT ON
                   </div>
-                  <div className="font-semibold text-xs sm:text-sm text-white whitespace-nowrap truncate leading-tight">
+                  <div className="font-semibold text-sm text-white whitespace-nowrap truncate leading-tight">
                     Google Play
                   </div>
                 </div>
@@ -226,7 +227,7 @@ const Footer = () => {
         </div>
 
         {/* Copyright Section */}
-        <div className="mt-12 pt-8 border-t border-white/15 text-center text-teal-100/70 text-xs sm:text-sm">
+        <div className={`mt-12 pt-8 border-t border-white/15 text-center text-teal-100/70 ${typeMeta}`}>
           <p>
             {settings.footer_copyright_text ||
               "© KaiZenHR Sdn Bhd 2025. All Rights Reserved."}

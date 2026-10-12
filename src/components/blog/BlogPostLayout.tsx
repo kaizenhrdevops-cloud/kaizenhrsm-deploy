@@ -6,6 +6,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { StickySidebar } from "./StickySidebar";
 import PostRenderer from "./PostRenderer";
+import { typeDisplay, typeMeta, typeSmall } from "@/components/ui/typography";
 import { useSettings } from "@/components/layout/SettingsProvider";
 
 // Type definitions... (Keep existing types)
@@ -147,10 +148,10 @@ export default function BlogPostLayout({
         <Navbar />
         <div className="flex flex-1 items-center justify-center pt-16 min-h-[700px] md:min-h-[800px]">
           <div className="max-w-4xl mx-auto px-4 text-center">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            <h1 className={`${typeDisplay} text-gray-900 mb-4`}>
               Post Not Found
             </h1>
-            <p className="text-gray-600 mb-8">
+            <p className={`text-gray-600 mb-8 ${typeSmall}`}>
               The post you're looking for doesn't exist.
             </p>
             <a
@@ -177,17 +178,17 @@ export default function BlogPostLayout({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-5 gap-12 items-center py-12">
             <div className="md:col-span-2 p-6 md:p-0 flex flex-col justify-center">
-              <p className="text-sm text-gray-500 mb-2">
+              <p className={`text-gray-500 mb-2 ${typeMeta}`}>
                 {new Date(post.published_at).toLocaleDateString("en-US", {
                   year: "numeric",
                   month: "long",
                   day: "numeric",
                 })}
               </p>
-              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              <h1 className={`${typeDisplay} text-gray-900 mb-4`}>
                 {post.title}
               </h1>
-              <div className="flex items-center text-gray-600">
+              <div className={`flex items-center text-gray-600 ${typeSmall}`}>
                 <span>
                   By {/* --- UPDATED: Use the dynamic default author --- */}
                   {post.author?.full_name ||

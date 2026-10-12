@@ -1,6 +1,7 @@
 // src/components/sections/HROffering.tsx
 import React from "react";
 import Container from "../layout/Container";
+import { typeH2, typeLead } from "../ui/typography";
 import DetailedFeatures from "./DetailedFeatures";
 
 const HROffering = () => {
@@ -15,11 +16,11 @@ const HROffering = () => {
       <Container className="relative z-10">
         {/* Header block — matches the site's light/bold weight convention */}
         <div className="text-center mb-14 lg:mb-20">
-          <h2 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-bold tracking-tight text-white leading-tight mb-3">
+          <h2 className={`${typeH2} text-white mb-3`}>
             Our Comprehensive HR Offering
           </h2>
           <div className="w-16 h-[3px] bg-yellow-400 mx-auto mb-5 rounded-full" />
-          <p className="text-base sm:text-lg text-white/70 max-w-xl mx-auto leading-relaxed">
+          <p className={`${typeLead} text-white/70 max-w-xl mx-auto`}>
             Complete HR modules designed to streamline your workforce management
           </p>
         </div>

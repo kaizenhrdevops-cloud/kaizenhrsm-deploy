@@ -2,6 +2,7 @@ import React from "react";
 import Container from "@/components/layout/Container";
 import Footer from "@/components/layout/Footer";
 import Navbar from "@/components/layout/Navbar";
+import { typeBody, typeDisplay, typeLead } from "@/components/ui/typography";
 import { getPublicSettings } from "@/lib/public-settings";
 
 const AboutUs = async () => {
@@ -22,10 +23,10 @@ const AboutUs = async () => {
         {/* Hero Section */}
         <div className="bg-slate-50 pt-16">
           <Container className="py-20 text-center lg:py-28">
-            <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl md:text-6xl">
+            <h1 className={`${typeDisplay} text-gray-900`}>
               About Us
             </h1>
-            <p className="mt-6 max-w-3xl mx-auto text-lg leading-8 text-gray-600 md:text-xl">
+            <p className={`mt-6 max-w-3xl mx-auto text-gray-600 ${typeLead}`}>
               From a pioneering idea to Malaysia’s most comprehensive HR
               solution.
             </p>
@@ -44,7 +45,7 @@ const AboutUs = async () => {
         <div className="py-20 lg:py-24">
           <Container>
             <div className="max-w-4xl mx-auto">
-              <div className="space-y-8 text-lg text-gray-700 leading-relaxed">
+              <div className={`space-y-8 text-gray-700 ${typeBody}`}>
                 <p>
                   Established in {foundingYear}, kaizen HRMS has been a trusted
                   name in HR technology for over {yearsExperience} years,

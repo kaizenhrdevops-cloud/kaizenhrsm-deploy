@@ -2,6 +2,7 @@
 "use client";
 import React, { useState } from "react";
 import { Linkedin, Twitter, Mail, Link2, Check, ChevronRight } from "lucide-react";
+import { typeH3, typeSmall } from "@/components/ui/typography";
 
 type TOCItem = {
   id: string;
@@ -111,13 +112,13 @@ export const StickySidebar = ({ toc, activeSection, postTitle }: StickySidebarPr
 
       {/* CTA Box */}
       <div className="bg-gradient-to-br from-[#008080] to-[#20b2aa] rounded-lg p-6 text-white">
-        <h3 className="text-lg font-bold mb-2">Need HR Solutions?</h3>
-        <p className="text-sm mb-4 text-white/90">
+        <h3 className={`${typeH3} mb-2`}>Need HR Solutions?</h3>
+        <p className={`${typeSmall} mb-4 text-white/90`}>
           Transform your HR management with KaizenHR. Let's discuss how we can help.
         </p>
         <a
           href="/company/contact-us"
-          className="inline-block w-full text-center bg-white text-[#008080] px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+          className="inline-block w-full text-center bg-white text-[#008080] px-6 py-3 rounded-lg text-sm font-semibold hover:bg-gray-100 transition-colors"
         >
           Contact Us
         </a>

@@ -32,6 +32,13 @@ import "prismjs/components/prism-yaml";
 import "prismjs/components/prism-bash";
 import "prismjs/components/prism-markdown";
 import { Copy, Check, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  typeBody,
+  typeH2,
+  typeH3,
+  typeLead,
+  typeSmall,
+} from "@/components/ui/typography";
 
 type Block = {
   id: string;
@@ -247,22 +254,19 @@ const renderTiptapContent = (node: any): string => {
       // Empty paragraphs (blank lines in the editor) render small so they
       // read as a normal line break instead of a double-spaced chasm.
       if (isEmptyParagraphNode(node)) {
-        return `<p class="mb-1 leading-tight text-gray-900 font-medium text-sm"${styleAttr}>&nbsp;</p>`;
+        return `<p class="mb-1 leading-tight text-gray-900 text-sm"${styleAttr}>&nbsp;</p>`;
       }
-      return `<p class="mb-4 leading-relaxed text-gray-900 font-medium"${styleAttr}>${children || "&nbsp;"}</p>`;
+      return `<p class="mb-4 ${typeBody} text-gray-900"${styleAttr}>${children || "&nbsp;"}</p>`;
 
     case "heading":
       const level = node.attrs?.level || 2;
-      const headingClass = `font-bold mb-4 mt-8 text-gray-900`;
-      const sizeClass =
-        level === 1
-          ? "text-4xl"
-          : level === 2
-            ? "text-3xl"
-            : level === 3
-              ? "text-2xl"
-              : "text-xl";
-      return `<h${level} class="${sizeClass} ${headingClass}"${styleAttr}>${children}</h${level}>`;
+      // One shared scale with the JSX path below: h1/h2 → section
+      // heading, h3+ → card-title size. No per-level size explosion.
+      const headingClass =
+        level <= 2
+          ? `${typeH2} text-gray-900 mb-6 mt-12`
+          : `${typeH3} text-gray-800 mb-4 mt-8`;
+      return `<h${level} class="${headingClass}"${styleAttr}>${children}</h${level}>`;
 
     case "bulletList":
       return `<ul class="list-disc pl-6 mt-1 mb-4 space-y-1.5"${styleAttr}>${children}</ul>`;
@@ -337,8 +341,8 @@ export default function PostRenderer({ blocks }: { blocks: Block[] }) {
           id: blockId,
           className:
             level === 2
-              ? "text-3xl font-bold text-gray-900 mb-6 mt-12"
-              : "text-2xl font-bold text-gray-800 mb-4 mt-8",
+              ? `${typeH2} text-gray-900 mb-6 mt-12`
+              : `${typeH3} text-gray-800 mb-4 mt-8`,
         };
 
         switch (level) {
@@ -379,7 +383,7 @@ export default function PostRenderer({ blocks }: { blocks: Block[] }) {
               className="w-full rounded-lg shadow-md"
             />
             {block.content.caption && (
-              <figcaption className="text-center text-sm text-gray-600 mt-3">
+              <figcaption className={`text-center text-gray-600 mt-3 ${typeSmall}`}>
                 {block.content.caption}
               </figcaption>
             )}
@@ -400,7 +404,7 @@ export default function PostRenderer({ blocks }: { blocks: Block[] }) {
               />
             </div>
             {block.content.caption && (
-              <figcaption className="text-center text-sm text-gray-600 mt-3">
+              <figcaption className={`text-center text-gray-600 mt-3 ${typeSmall}`}>
                 {block.content.caption}
               </figcaption>
             )}
@@ -410,11 +414,11 @@ export default function PostRenderer({ blocks }: { blocks: Block[] }) {
       case "quote":
         return (
           <blockquote className="my-8 pl-6 py-4 border-l-4 border-[#008080] bg-[#f0fafa] rounded-r-lg">
-            <p className="text-xl italic text-gray-800 mb-2">
+            <p className={`${typeLead} italic text-gray-800 mb-2`}>
               {block.content.text}
             </p>
             {block.content.author && (
-              <cite className="text-sm text-gray-600 not-italic">
+              <cite className={`${typeSmall} text-gray-600 not-italic`}>
                 — {block.content.author}
               </cite>
             )}

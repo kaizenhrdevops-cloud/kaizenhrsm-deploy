@@ -43,7 +43,7 @@ function FormField({
 }) {
   return (
     <div className="space-y-2">
-      <label className="block text-sm font-bold text-gray-800">
+      <label className="block text-sm font-semibold text-gray-800">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
       {children}
@@ -322,7 +322,7 @@ export default function ContactForm({
       <button
         type="submit"
         disabled={isSubmitting || !captchaToken}
-        className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 px-8 rounded-xl font-bold shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-indigo-700 hover:shadow-xl transform hover:scale-[1.01] active:scale-[0.99] transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none text-lg"
+        className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 px-8 rounded-xl text-base font-semibold shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-indigo-700 hover:shadow-xl transform hover:scale-[1.01] active:scale-[0.99] transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
       >
         {isSubmitting ? (
           <>
@@ -356,7 +356,7 @@ export default function ContactForm({
         )}
       </button>
 
-      <p className="text-xs text-gray-500 text-center mt-6">
+      <p className="text-xs font-medium text-gray-500 text-center mt-6">
         By submitting, you agree to our{" "}
         <a href="#" className="text-blue-600 hover:underline">
           Privacy Policy

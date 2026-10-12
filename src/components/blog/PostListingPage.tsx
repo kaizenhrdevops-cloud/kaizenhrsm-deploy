@@ -8,6 +8,14 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import Container from "@/components/layout/Container";
 import Pagination from "@/components/ui/Pagination";
+import {
+  typeDisplay,
+  typeH2,
+  typeH3,
+  typeLead,
+  typeMeta,
+  typeSmall,
+} from "@/components/ui/typography";
 import { ArrowRight, Search, X, Calendar, Image as ImageIcon } from "lucide-react";
 
 export type PostBlock = {
@@ -206,11 +214,11 @@ function PostListingContent({
           <Container>
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
               <div>
-                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 tracking-tight">
+                <h1 className={`${typeDisplay} text-gray-900`}>
                   {title}
                 </h1>
                 {subtitle && (
-                  <p className="mt-3 text-base sm:text-lg text-gray-600 max-w-2xl leading-relaxed">
+                  <p className={`mt-3 max-w-2xl text-gray-600 ${typeLead}`}>
                     {subtitle}
                   </p>
                 )}
@@ -289,10 +297,10 @@ function PostListingContent({
               <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4 text-gray-400">
                 <Search className="w-7 h-7" />
               </div>
-              <h2 className="text-xl font-bold text-gray-900 mb-2">
+              <h2 className={`${typeH3} text-gray-900 mb-2`}>
                 {searchQuery ? "No matching articles found" : "No articles found"}
               </h2>
-              <p className="text-gray-600 max-w-md mx-auto mb-6 text-sm">
+              <p className={`${typeSmall} text-gray-600 max-w-md mx-auto mb-6`}>
                 {searchQuery
                   ? `We couldn't find any articles matching "${searchQuery}". Try using different keywords.`
                   : emptyMessage}
@@ -362,7 +370,7 @@ function PostListingContent({
                     <div className="md:col-span-5 p-7 sm:p-9 md:p-10 flex flex-col justify-between">
                       <div>
                         {featuredPost.published_at && (
-                          <div className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-3.5">
+                          <div className={`flex items-center gap-1.5 text-gray-500 mb-3.5 ${typeMeta}`}>
                             <Calendar className="w-3.5 h-3.5 text-gray-400" />
                             <time dateTime={featuredPost.published_at}>
                               {formatDate(featuredPost.published_at)}
@@ -370,7 +378,7 @@ function PostListingContent({
                           </div>
                         )}
 
-                        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 group-hover:text-teal-700 transition-colors duration-200 line-clamp-3 leading-snug">
+                        <h2 className={`${typeH2} text-gray-900 group-hover:text-teal-700 transition-colors duration-200 line-clamp-3`}>
                           {featuredPost.title}
                         </h2>
 
@@ -378,7 +386,7 @@ function PostListingContent({
                         {(() => {
                           const snippet = getPostSnippet(featuredPost, 15);
                           return snippet ? (
-                            <p className="mt-4 text-sm sm:text-base text-gray-600 line-clamp-3 leading-relaxed">
+                            <p className={`mt-4 text-gray-600 line-clamp-3 ${typeSmall}`}>
                               {snippet}
                             </p>
                           ) : null;
@@ -424,7 +432,7 @@ function PostListingContent({
                       <div className="p-6 flex flex-col flex-grow justify-between">
                         <div>
                           {post.published_at && (
-                            <div className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-2.5">
+                            <div className={`flex items-center gap-1.5 text-gray-500 mb-2.5 ${typeMeta}`}>
                               <Calendar className="w-3.5 h-3.5 text-gray-400" />
                               <time dateTime={post.published_at}>
                                 {formatDate(post.published_at)}
@@ -432,7 +440,7 @@ function PostListingContent({
                             </div>
                           )}
 
-                          <h3 className="text-lg font-bold text-gray-900 group-hover:text-teal-700 transition-colors duration-200 line-clamp-2 leading-snug">
+                          <h3 className={`${typeH3} text-gray-900 group-hover:text-teal-700 transition-colors duration-200 line-clamp-2`}>
                             {post.title}
                           </h3>
 
@@ -440,7 +448,7 @@ function PostListingContent({
                           {(() => {
                             const snippet = getPostSnippet(post, 14);
                             return snippet ? (
-                              <p className="mt-2.5 text-sm text-gray-600 line-clamp-2 leading-relaxed">
+                              <p className={`mt-2.5 text-gray-600 line-clamp-2 ${typeSmall}`}>
                                 {snippet}
                               </p>
                             ) : null;

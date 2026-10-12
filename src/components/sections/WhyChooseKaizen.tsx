@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Container from "../layout/Container";
+import { typeBody, typeDisplay, typeH3 } from "../ui/typography";
 import { Smartphone, Building2, Globe } from "lucide-react";
 
 const features = [
@@ -70,8 +71,8 @@ const WhyChooseKaizen = () => {
     <section className="py-24 lg:py-32 bg-gradient-to-b from-slate-50 to-white">
       <Container>
         <div className="text-center mb-16 lg:mb-20">
-          <h2 className="text-4xl lg:text-5xl font-light text-slate-900 mb-4">
-            Why Choose <span className="font-semibold">Kaizen?</span>
+          <h2 className={`${typeDisplay} text-slate-900 mb-4`}>
+            Why Choose Kaizen?
           </h2>
           <div className="w-24 h-1 bg-slate-900 mx-auto"></div>
         </div>
@@ -102,10 +103,10 @@ const WhyChooseKaizen = () => {
                           strokeWidth={1.5}
                         />
                       </div>
-                      <h3 className="text-2xl font-semibold text-slate-900 mb-4">
+                      <h3 className={`${typeH3} text-slate-900 mb-4`}>
                         {feature.title}
                       </h3>
-                      <p className="text-slate-600 leading-relaxed">
+                      <p className={`${typeBody} text-slate-600`}>
                         {feature.description}
                       </p>
                     </div>
@@ -146,10 +147,10 @@ const WhyChooseKaizen = () => {
                 >
                   <Icon size={48} className="text-white" strokeWidth={1.5} />
                 </div>
-                <h3 className="text-2xl font-semibold text-slate-900 mb-4 text-center">
+                <h3 className={`${typeH3} text-slate-900 mb-4 text-center`}>
                   {feature.title}
                 </h3>
-                <p className="text-slate-600 leading-relaxed text-center">
+                <p className={`${typeBody} text-slate-600 text-center`}>
                   {feature.description}
                 </p>
               </div>

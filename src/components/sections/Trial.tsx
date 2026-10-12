@@ -5,6 +5,7 @@ import Link from "next/link";
 import Container from "../layout/Container";
 import { Check, ArrowRight } from "lucide-react";
 import { getPublicSettings } from "@/lib/public-settings";
+import { typeBody, typeH2, typeLead } from "../ui/typography";
 
 const Trial = async () => {
   const settings = await getPublicSettings();
@@ -20,14 +21,14 @@ const Trial = async () => {
           <div className="space-y-8">
             {/* Header */}
             <div className="space-y-4">
-              <h2 className="text-3xl md:text-4xl font-extrabold text-blue-600 tracking-tight leading-tight">
+              <h2 className={`${typeH2} text-blue-600`}>
                 Don’t Just Settle for a Demo —{" "}
                 <br className="hidden xl:block" />
                 <span className="text-slate-900">
                   Experience the Difference!
                 </span>
               </h2>
-              <p className="text-lg text-slate-600 leading-relaxed">
+              <p className={`${typeLead} text-slate-600`}>
                 While most vendors only show you a glimpse, we let you truly
                 experience our HR solution with a{" "}
                 <span className="font-semibold text-slate-900">
@@ -51,7 +52,7 @@ const Trial = async () => {
                   <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
                     <Check className="w-5 h-5" strokeWidth={2.5} />
                   </div>
-                  <span className="text-lg text-slate-700 font-medium group-hover:text-slate-900 transition-colors">
+                  <span className={`${typeBody} text-slate-700 font-medium group-hover:text-slate-900 transition-colors`}>
                     {item}
                   </span>
                 </div>
@@ -60,10 +61,10 @@ const Trial = async () => {
 
             {/* Bottom Content & CTA */}
             <div className="space-y-5 pt-4 border-t border-slate-100">
-              <p className="text-slate-600 leading-relaxed">
+              <p className={`${typeBody} text-slate-600`}>
                 We are confident our solution will deliver exactly what your
                 business needs. After all, choosing the right HR system is a{" "}
-                <span className="font-bold text-slate-900">
+                <span className="font-semibold text-slate-900">
                   long-term investment in your people, not just a cost.
                 </span>
               </p>
@@ -74,7 +75,7 @@ const Trial = async () => {
                 </span>
                 <Link
                   href="/company/contact-us"
-                  className="group inline-flex items-center gap-1 text-blue-600 font-bold text-lg hover:text-blue-700 transition-colors"
+                  className="group inline-flex items-center gap-1 text-blue-600 text-base font-semibold hover:text-blue-700 transition-colors"
                 >
                   <span>Start your free trial today</span>
                   <ArrowRight className="w-5 h-5 transform transition-transform duration-300 group-hover:translate-x-1" />

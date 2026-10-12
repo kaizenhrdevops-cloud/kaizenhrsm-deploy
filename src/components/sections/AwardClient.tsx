@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Container from "../layout/Container";
+import { typeDisplay, typeEyebrow, typeLead } from "../ui/typography";
 
 interface AwardClientProps {
   image1: string;
@@ -78,17 +79,17 @@ const AwardClient = ({ image1, image2 }: AwardClientProps) => {
 
           {/* Center Content */}
           <div className="max-w-2xl flex-1">
-            <div className="inline-block px-5 py-2 mb-8 text-xs font-semibold tracking-widest text-slate-700 uppercase bg-slate-100 rounded">
+            <div className={`inline-block px-5 py-2 mb-8 text-slate-700 bg-slate-100 rounded ${typeEyebrow}`}>
               Award Winning Excellence
             </div>
 
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-light text-slate-900 mb-8 tracking-tight leading-tight">
+            <h2 className={`${typeDisplay} text-slate-900 mb-8`}>
               MSC-APICTA Malaysia <br className="hidden md:block" />
-              <span className="font-semibold text-slate-900">Award Winner</span>
+              Award Winner
             </h2>
 
-            <div className="space-y-6 text-slate-600 leading-relaxed">
-              <p className="text-lg md:text-xl">
+            <div className="space-y-6 text-slate-600">
+              <p className={typeLead}>
                 KaiZen stands as the only HR solution in Malaysia to be
                 nominated twice in consecutive years and ultimately crowned{" "}
                 <span className="font-semibold text-slate-900">WINNER</span> of
@@ -96,7 +97,7 @@ const AwardClient = ({ image1, image2 }: AwardClientProps) => {
                 Applications category.
               </p>
 
-              <p className="text-base md:text-lg">
+              <p className={typeLead}>
                 This rare distinction reflects not only the unmatched strength
                 of our product, but also its relevance, innovation, and enduring
                 impact within the HR technology industry.
