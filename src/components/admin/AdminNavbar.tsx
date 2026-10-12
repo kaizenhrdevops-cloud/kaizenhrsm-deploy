@@ -1,7 +1,6 @@
 "use client";
 
 import { getBrowserClient } from "@/lib/client";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
 import type { User } from "@supabase/supabase-js";
@@ -20,7 +19,6 @@ export default function AdminNavbar({
 }: {
   onMenuClick: () => void;
 }) {
-  const router = useRouter();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -68,13 +66,17 @@ export default function AdminNavbar({
     } catch {
       // ignore storage errors
     }
+    // Await the server sign-out so auth cookies are definitely cleared
+    // before leaving. A fire-and-forget beacon + client-side router.push
+    // could win the race and let the next /admin load slip through the
+    // middleware on leftover cookies (the <1s glimpse after logout).
     try {
-      fetch("/api/auth/signout", {
+      await fetch("/api/auth/signout", {
         method: "POST",
         credentials: "same-origin",
-      }).catch(() => {});
+      });
     } catch {
-      // ignore
+      // ignore — client sign-out below still clears local cookies
     }
     await supabase.auth.signOut();
     try {
@@ -85,8 +87,10 @@ export default function AdminNavbar({
     } catch {
       // ignore
     }
-    router.push("/login");
-    router.refresh();
+    // Hard navigation (not router.push): bypasses the Next.js router cache
+    // so no stale admin payload can replay, and forces a fresh middleware
+    // session check on the way to /login.
+    window.location.href = "/login";
   };
 
   return (

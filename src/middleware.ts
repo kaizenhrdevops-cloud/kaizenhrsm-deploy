@@ -121,6 +121,18 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  // 6. Never let browsers or proxies cache admin responses (documents or
+  // RSC payloads). A cached copy would otherwise let Back-button/bfcache
+  // restores paint protected content after logout without any server check.
+  if (pathname.startsWith("/admin")) {
+    supabaseResponse.headers.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate"
+    );
+    supabaseResponse.headers.set("Pragma", "no-cache");
+    supabaseResponse.headers.set("Expires", "0");
+  }
+
   return supabaseResponse;
 }
 

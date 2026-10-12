@@ -28,14 +28,25 @@ import {
  *
  * Refreshing or navigating inside the same tab keeps the session alive
  * (sessionStorage survives reload; it is cleared only on tab close).
+ *
+ * The guard renders nothing itself. The admin layout must stay blank until
+ * onReady fires — otherwise a fresh tab with leftover cookies would paint
+ * protected content for a split second before the redirect (privacy leak).
  */
-export default function AdminSessionGuard() {
+export default function AdminSessionGuard({
+  onReady,
+}: {
+  onReady: () => void;
+}) {
   const didRedirect = useRef(false);
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
 
   useEffect(() => {
     const supabase = getBrowserClient();
     const tabId = ensureTabId();
     if (!tabId) return;
+    let cancelled = false;
 
     const redirectToLogin = (error: string) => {
       if (didRedirect.current) return;
@@ -105,6 +116,7 @@ export default function AdminSessionGuard() {
         } catch {
           hasSession = false;
         }
+        if (cancelled) return;
         if (hasSession) {
           await fullSignOut(SESSION_EXPIRED_PARAM);
           return;
@@ -118,7 +130,10 @@ export default function AdminSessionGuard() {
       }
       registerTab(tabId);
       touchActivity();
-      void checkTimeouts();
+      const timedOut = await checkTimeouts();
+      if (!timedOut && !cancelled && !didRedirect.current) {
+        onReadyRef.current();
+      }
     };
 
     // --- Idle / absolute timeout checks ---
@@ -161,6 +176,16 @@ export default function AdminSessionGuard() {
       }
     };
 
+    // Back/forward cache can restore a full admin DOM snapshot without any
+    // server round-trip (no middleware, no guard check) — showing protected
+    // content to whoever presses Back after logout. Force a real reload so
+    // the session is revalidated server-side instead.
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        window.location.reload();
+      }
+    };
+
     // --- Tab-close bookkeeping ---
     // NOTE: pagehide/beforeunload fire on refresh too, so we must NOT sign
     // out here (that would log users out on every reload). We only drop
@@ -200,6 +225,7 @@ export default function AdminSessionGuard() {
     );
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("storage", onStorage);
+    window.addEventListener("pageshow", onPageShow);
     // pagehide/beforeunload fire on tab close AND on refresh/navigation —
     // handleUnload only unregisters the tab (never signs out) so reloads
     // stay logged in while closed tabs are forgotten.
@@ -209,10 +235,12 @@ export default function AdminSessionGuard() {
     void initialise();
 
     return () => {
+      cancelled = true;
       window.clearInterval(interval);
       events.forEach(([name, fn]) => window.removeEventListener(name, fn));
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("storage", onStorage);
+      window.removeEventListener("pageshow", onPageShow);
       window.removeEventListener("pagehide", handleUnload);
       window.removeEventListener("beforeunload", handleUnload);
       subscription.unsubscribe();
