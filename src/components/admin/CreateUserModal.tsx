@@ -3,7 +3,7 @@
 import { createUser } from "@/app/admin/users/actions";
 import { useRef, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { X, User, Mail, Lock, Shield, Loader2 } from "lucide-react";
+import { X, User, Mail, Lock, Shield, Loader2, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils"; // Assuming you have this utility, otherwise standard template literals work too
 
 export default function CreateUserModal({
@@ -19,6 +19,7 @@ export default function CreateUserModal({
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Handle hydration mismatch by only rendering portal on client
   useEffect(() => {
@@ -28,6 +29,8 @@ export default function CreateUserModal({
   // Lock body scroll and handle Escape key
   useEffect(() => {
     if (isOpen) {
+      setShowPassword(false);
+      setMessage(null);
       document.body.style.overflow = "hidden";
       const handleEscape = (e: KeyboardEvent) => {
         if (e.key === "Escape") onClose();
@@ -137,7 +140,10 @@ export default function CreateUserModal({
 
               {/* Password */}
               <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                <label
+                  htmlFor="create-user-password"
+                  className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
                   Password
                 </label>
                 <div className="relative">
@@ -145,12 +151,29 @@ export default function CreateUserModal({
                     <Lock className="h-4 w-4 text-slate-400" />
                   </div>
                   <input
+                    id="create-user-password"
                     name="password"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
                     placeholder="••••••••"
                     required
-                    className="block w-full pl-10 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 sm:text-sm py-2.5 transition-all placeholder:text-slate-400"
+                    className="block w-full pl-10 pr-10 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 sm:text-sm py-2.5 transition-all placeholder:text-slate-400"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
+                    title={showPassword ? "Hide password" : "Show password"}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
                 </div>
               </div>
 

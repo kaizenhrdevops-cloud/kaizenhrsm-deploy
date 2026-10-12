@@ -3,11 +3,16 @@
 import { useState, useEffect } from "react";
 import { getBrowserClient } from "@/lib/client";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertCircle, Loader2, Lock } from "lucide-react";
+import { AlertCircle, Loader2, Lock, Eye, EyeOff } from "lucide-react";
+import {
+  markTabSessionActive,
+  SESSION_EXPIRED_PARAM,
+} from "@/lib/admin-session";
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -28,6 +33,16 @@ export default function LoginForm() {
     } else if (errorType === "invalid_link" || errorType === "expired_link") {
       triggerError(
         "That password link is invalid or expired. Please request a new one."
+      );
+    } else if (errorType === SESSION_EXPIRED_PARAM) {
+      triggerError("Your session ended. Please sign in again.");
+    } else if (errorType === "idle") {
+      triggerError(
+        "You were signed out after 30 minutes of inactivity. Please sign in again."
+      );
+    } else if (errorType === "expired") {
+      triggerError(
+        "Your session reached the 8-hour limit. Please sign in again."
       );
     }
     if (searchParams.get("reset") === "success") {
@@ -92,7 +107,13 @@ export default function LoginForm() {
         }
       }
 
+      // Mark this tab as a legitimate session so the admin session
+      // guard keeps it alive (refresh/navigation safe, reopen requires
+      // login). Must run in the same tab before entering /admin.
+      markTabSessionActive();
+
       router.push("/admin/dashboard");
+      router.refresh();
     } catch {
       triggerError("Unexpected error occurred.");
     } finally {
@@ -151,23 +172,39 @@ export default function LoginForm() {
 
         {/* Password + Error */}
         <div>
-          <label className="block text-sm font-medium text-gray-800 dark:text-gray-300">
+          <label
+            htmlFor="admin-password"
+            className="block text-sm font-medium text-gray-800 dark:text-gray-300"
+          >
             Password
           </label>
-          <input
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="
-              mt-2 w-full px-4 py-3 
-              bg-white/70 dark:bg-gray-900/30 
-              border border-gray-300 dark:border-gray-700 
-              text-gray-900 dark:text-white 
-              rounded-lg focus:ring-2 focus:ring-blue-500 outline-none
-            "
-            placeholder="••••••••"
-          />
+          <div className="relative mt-2">
+            <input
+              id="admin-password"
+              type={showPassword ? "text" : "password"}
+              required
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="
+                w-full px-4 py-3 pr-12
+                bg-white/70 dark:bg-gray-900/30
+                border border-gray-300 dark:border-gray-700
+                text-gray-900 dark:text-white
+                rounded-lg focus:ring-2 focus:ring-blue-500 outline-none
+              "
+              placeholder="••••••••"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              title={showPassword ? "Hide password" : "Show password"}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
+          </div>
 
           {/* Fade-In Error Under Password */}
           {error && (

@@ -6,6 +6,14 @@ import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
 import type { User } from "@supabase/supabase-js";
 import { Menu, ChevronDown, User as UserIcon, LogOut } from "lucide-react";
+import {
+  LAST_ACTIVITY_KEY,
+  LOGIN_AT_KEY,
+  TAB_ID_KEY,
+  TAB_VALIDATED_KEY,
+  broadcastLogout,
+  unregisterTab,
+} from "@/lib/admin-session";
 
 export default function AdminNavbar({
   onMenuClick,
@@ -50,7 +58,33 @@ export default function AdminNavbar({
   }, [isDropdownOpen]);
 
   const handleLogout = async () => {
+    try {
+      const tabId =
+        typeof window !== "undefined"
+          ? sessionStorage.getItem(TAB_ID_KEY)
+          : null;
+      if (tabId) unregisterTab(tabId);
+      broadcastLogout();
+    } catch {
+      // ignore storage errors
+    }
+    try {
+      fetch("/api/auth/signout", {
+        method: "POST",
+        credentials: "same-origin",
+      }).catch(() => {});
+    } catch {
+      // ignore
+    }
     await supabase.auth.signOut();
+    try {
+      localStorage.removeItem(LOGIN_AT_KEY);
+      localStorage.removeItem(LAST_ACTIVITY_KEY);
+      sessionStorage.removeItem(TAB_VALIDATED_KEY);
+      sessionStorage.removeItem(TAB_ID_KEY);
+    } catch {
+      // ignore
+    }
     router.push("/login");
     router.refresh();
   };

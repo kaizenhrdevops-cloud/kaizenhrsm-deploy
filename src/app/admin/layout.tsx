@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Toaster } from "react-hot-toast";
 import AdminNavbar from "@/components/admin/AdminNavbar";
 import AdminSidebar from "@/components/admin/AdminSidebar";
+import AdminSessionGuard from "@/components/admin/AdminSessionGuard";
 
 export default function AdminLayout({
   children,
@@ -28,6 +29,8 @@ export default function AdminLayout({
   return (
     // Main container now stacks vertically
     <div className="flex flex-col h-screen bg-slate-50 dark:bg-[#0B101D]">
+      {/* Ends the session when the last admin tab closes; 30m idle / 8h max */}
+      <AdminSessionGuard />
       {/* Single toast system for all of /admin (react-hot-toast) */}
       <Toaster position="top-center" />
       {/* Navbar is now a direct child, it will be full-width by default */}
