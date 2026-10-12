@@ -199,8 +199,18 @@ export default function LoginForm() {
               type="button"
               onClick={() => setShowPassword((v) => !v)}
               aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-pressed={showPassword}
               title={showPassword ? "Hide password" : "Show password"}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={`
+                absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md
+                transition-colors
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600
+                ${
+                  showPassword
+                    ? "text-blue-700 bg-blue-600/10 hover:bg-blue-600/20 dark:text-blue-300 dark:bg-blue-400/15 dark:hover:bg-blue-400/25"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-900/10 dark:text-slate-200 dark:hover:text-white dark:hover:bg-white/15"
+                }
+              `}
             >
               {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
