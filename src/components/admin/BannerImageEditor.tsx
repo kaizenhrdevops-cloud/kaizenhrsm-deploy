@@ -67,7 +67,9 @@ function clamp(v: number, min: number, max: number): number {
 
 function loadImageSize(src: string): Promise<{ w: number; h: number }> {
   return new Promise((resolve, reject) => {
-    const img = new Image();
+    // NOTE: plain `Image` here would resolve to the next/image component
+    // imported above — the DOM constructor must be addressed explicitly.
+    const img = new window.Image();
     img.onload = () =>
       img.naturalWidth > 0 && img.naturalHeight > 0
         ? resolve({ w: img.naturalWidth, h: img.naturalHeight })
@@ -453,7 +455,9 @@ export default function BannerImageEditor({
     if (!draft || frameW <= 0) return;
     setSaving(true);
     try {
-      const img = new Image();
+      // NOTE: see loadImageSize — must be the DOM constructor, not the
+      // next/image component.
+      const img = new window.Image();
       await new Promise<void>((resolve, reject) => {
         img.onload = () => resolve();
         img.onerror = () => reject(new Error("decode failed"));

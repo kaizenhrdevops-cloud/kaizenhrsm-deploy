@@ -41,7 +41,7 @@ import {
   PlusCircle,
   Type,
   Heading1,
-  Image,
+  Image as ImageIcon,
   Video,
   Quote,
   Code,
@@ -449,7 +449,7 @@ export default function Step3Content({
                   onClick={() => handleAddBlock("heading")}
                 />
                 <BlockMenuItem
-                  icon={<Image size={18} />}
+                  icon={<ImageIcon size={18} />}
                   label="Image"
                   description="Upload or embed"
                   onClick={() => handleAddBlock("image")}
@@ -515,11 +515,15 @@ function DragPreviewCard({ block }: { block: PostBlock }) {
       </div>
       <div className="px-4 py-3">
         {block.type === "image" && (block.content as any)?.url ? (
-          <Image
-            src={(block.content as any).url}
-            alt=""
-            className="h-28 w-full rounded-lg object-cover"
-          />
+          <div className="relative h-28 w-full">
+            <Image
+              src={(block.content as any).url}
+              alt=""
+              fill
+              sizes="(max-width: 896px) 100vw, 896px"
+              className="rounded-lg object-cover"
+            />
+          </div>
         ) : block.type === "heading" ? (
           <p className="truncate text-2xl font-extrabold tracking-tight text-gray-900 dark:text-white">
             {preview || "Heading"}
@@ -540,7 +544,7 @@ const BLOCK_PREVIEW_META: Record<
 > = {
   paragraph: { label: "Paragraph", Icon: Type },
   heading: { label: "Heading", Icon: Heading1 },
-  image: { label: "Image", Icon: Image },
+  image: { label: "Image", Icon: ImageIcon },
   video: { label: "Video", Icon: Video },
   quote: { label: "Quote", Icon: Quote },
   code: { label: "Code", Icon: Code },

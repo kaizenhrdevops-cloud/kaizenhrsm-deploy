@@ -52,8 +52,9 @@ export default function ContactInfoCards({
   settings: PublicSettings;
 }) {
   // CHANGED: address card opens Google Maps search for the address
+  const address = settings.contact_address ?? "";
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-    settings.contact_address.replace(/\n/g, " "),
+    address.replace(/\n/g, " "),
   )}`;
 
   return (
