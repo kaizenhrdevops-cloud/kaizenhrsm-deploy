@@ -1,110 +1,118 @@
 "use client";
 
-import { MapPin, Mail, Phone } from "lucide-react";
+// CHANGED: ArrowUpRight added; typeH3 import removed (no longer used)
+import { MapPin, Mail, Phone, ArrowUpRight } from "lucide-react";
 import type { PublicSettings } from "@/lib/public-settings";
-import {
-  typeBody,
-  typeH2,
-  typeH3,
-  typeLead,
-} from "@/components/ui/typography";
+import { typeBody, typeH2, typeLead } from "@/components/ui/typography";
 
+// CHANGED: whole card is now a link (maps / mailto / tel). Icons all use the
+// brand teal #008080 instead of blue/green/purple. Small teal title on top,
+// the actual value is the dark, larger text so it scans first.
 function InfoCard({
   icon,
-  iconClass,
   title,
+  href,
+  external,
   children,
 }: {
   icon: React.ReactNode;
-  iconClass: string;
   title: string;
+  href: string;
+  external?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <div className="group flex items-start gap-6 p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300">
-      <div
-        className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-inner transition-colors duration-300 ${iconClass}`}
-      >
+    <a
+      href={href}
+      {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+      className="group flex items-center gap-5 rounded-2xl border border-[#F1F5FA] bg-white p-5 shadow-sm transition-all duration-300 hover:border-[#008080]/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#008080]"
+    >
+      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-[#008080]/10 text-[#008080] transition-colors duration-300 group-hover:bg-[#008080] group-hover:text-white">
         {icon}
       </div>
-      <div>
-        <h3 className={`${typeH3} text-gray-900 mb-2`}>{title}</h3>
-        {children}
+      <div className="min-w-0 flex-1">
+        <p className="mb-1 text-sm font-semibold text-[#008080]">{title}</p>
+        <div className={`${typeBody} break-words font-medium text-gray-900`}>
+          {children}
+        </div>
       </div>
-    </div>
+      <ArrowUpRight className="h-5 w-5 flex-shrink-0 text-gray-300 transition-colors duration-300 group-hover:text-[#008080]" />
+    </a>
   );
 }
 
 /**
- * Left column: contact info cards + map. Extracted from contact-us page.
+ * Left column: heading + contact info cards.
+ * CHANGED: the map is no longer in here. It moved to <ContactMap /> below so
+ * it can sit full-width under the form.
  */
 export default function ContactInfoCards({
   settings,
 }: {
   settings: PublicSettings;
 }) {
+  // CHANGED: address card opens Google Maps search for the address
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+    settings.contact_address.replace(/\n/g, " "),
+  )}`;
+
   return (
-    <div className="space-y-12">
+    <div className="space-y-8">
       <div>
-        <h2 className={`${typeH2} text-gray-900 mb-4`}>
-          Contact Information
-        </h2>
-        <p className={`${typeLead} text-gray-600 max-w-md`}>
+        <h2 className={`${typeH2} mb-4 text-gray-900`}>Contact Information</h2>
+        <p className={`${typeLead} max-w-md text-gray-600`}>
           We&apos;re here to help. Reach out to us via phone, email, or visit
           our office for a coffee and a chat.
         </p>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-4">
         <InfoCard
-          icon={<MapPin className="w-7 h-7" />}
-          iconClass="bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white"
+          icon={<MapPin className="h-6 w-6" />}
           title="Our Office Address"
+          href={mapsUrl}
+          external
         >
-          <p className={`${typeBody} text-gray-600 whitespace-pre-line`}>
+          <span className="whitespace-pre-line font-normal text-gray-700">
             {settings.contact_address}
-          </p>
+          </span>
         </InfoCard>
 
         <InfoCard
-          icon={<Mail className="w-7 h-7" />}
-          iconClass="bg-green-50 text-green-600 group-hover:bg-green-600 group-hover:text-white"
+          icon={<Mail className="h-6 w-6" />}
           title="Email Us"
+          href={`mailto:${settings.contact_email}`}
         >
-          <a
-            href={`mailto:${settings.contact_email}`}
-            className={`${typeBody} text-gray-600 hover:text-blue-600 font-medium transition-colors block`}
-          >
-            {settings.contact_email}
-          </a>
+          {settings.contact_email}
         </InfoCard>
 
         <InfoCard
-          icon={<Phone className="w-7 h-7" />}
-          iconClass="bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white"
+          icon={<Phone className="h-6 w-6" />}
           title="Call Us"
+          href={`tel:${settings.contact_phone}`}
         >
-          <a
-            href={`tel:${settings.contact_phone}`}
-            className={`${typeBody} text-gray-600 hover:text-blue-600 font-medium transition-colors block`}
-          >
-            {settings.contact_phone}
-          </a>
+          {settings.contact_phone}
         </InfoCard>
       </div>
+    </div>
+  );
+}
 
-      <div className="relative w-full h-[400px] rounded-3xl overflow-hidden shadow-2xl border-4 border-white ring-1 ring-gray-100">
-        <iframe
-          src={settings.integration_google_maps_embed}
-          width="100%"
-          height="100%"
-          style={{ border: 0 }}
-          allowFullScreen={true}
-          loading="lazy"
-          referrerPolicy="no-referrer-when-downgrade"
-          className="w-full h-full object-cover"
-        ></iframe>
-      </div>
+// CHANGED: new named export. Map is now its own full-width block.
+export function ContactMap({ settings }: { settings: PublicSettings }) {
+  return (
+    <div className="relative h-[320px] w-full overflow-hidden rounded-3xl border border-[#F1F5FA] bg-[#F1F5FA] shadow-lg md:h-[420px]">
+      <iframe
+        title="KaiZenHR office location"
+        src={settings.integration_google_maps_embed}
+        width="100%"
+        height="100%"
+        style={{ border: 0 }}
+        allowFullScreen={true}
+        loading="lazy"
+        referrerPolicy="no-referrer-when-downgrade"
+        className="h-full w-full"
+      ></iframe>
     </div>
   );
 }

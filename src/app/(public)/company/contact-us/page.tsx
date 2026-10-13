@@ -7,7 +7,8 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import type { PublicSettings } from "@/lib/public-settings";
 import { useSettings } from "@/components/layout/SettingsProvider";
-import ContactInfoCards from "./ContactInfoCards";
+// CHANGED: also import the new ContactMap export
+import ContactInfoCards, { ContactMap } from "./ContactInfoCards";
 import ContactForm, { type SubmitStatus } from "./ContactForm";
 import {
   typeBody,
@@ -36,24 +37,33 @@ const ContactUsPage = () => {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    // CHANGED: page background is now brand #F8FAFB
+    <div className="min-h-screen bg-[#F8FAFB]">
       <Navbar />
 
       <main>
-        {/* Hero Section */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-blue-900 via-blue-800 to-[#008080] text-white">
+        {/* CHANGED: Hero uses brand teal (#008080) with a soft #1853E9 glow in
+            the top-right, instead of blue-900 -> teal. Gradient is inline
+            style so the rgba/radial syntax can't be mangled by Tailwind. */}
+        <div
+          className="relative overflow-hidden text-white"
+          style={{
+            backgroundImage:
+              "radial-gradient(60% 90% at 90% 0%, rgba(24,83,233,0.45) 0%, transparent 60%), linear-gradient(135deg, #005c5c 0%, #008080 55%, #12a3a0 100%)",
+          }}
+        >
           <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-10"></div>
-          {/* CHANGED: the fixed navbar (80px) covers the top of this band, so
-      top padding = bottom padding + 80px. That centers the text in the
-      VISIBLE area, not the whole box. If the navbar height changes,
-      update the 80px below. */}
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-[calc(80px+4rem)] pb-16 text-center flex flex-col items-center justify-center min-h-[400px] md:min-h-[460px]">
-            {" "}
-            {/* CHANGED: pt/pb */}
+          {/* CHANGED: centering math with the 80px fixed navbar.
+              Below lg (no overlap): pt = pb + 80px  -> pt 144 / pb 64.
+              At lg the form card overlaps the hero by 64px (lg:-mt-32 on the
+              card minus the 64px top padding of the content area), so
+              pt = pb + (80 - 64) -> pt 144 / pb 128 (lg:pb-32).
+              If you change the overlap, keep pt - pb = 80px - overlap. */}
+          <div className="relative mx-auto flex min-h-[400px] max-w-7xl flex-col items-center justify-center px-4 pb-16 pt-[calc(80px+4rem)] text-center sm:px-6 md:min-h-[460px] lg:px-8 lg:pb-32">
             <h1 className={`${typeDisplay} mb-6`}>
               Let&apos;s Start a Conversation
             </h1>
-            <p className={`${typeLead} text-blue-100 max-w-3xl`}>
+            <p className={`${typeLead} max-w-3xl text-white/85`}>
               Whether you have questions about our modules or need a custom
               solution, our team is ready to help you transform your HR.
             </p>
@@ -61,60 +71,73 @@ const ContactUsPage = () => {
         </div>
 
         {/* Main Content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
-          {/* Status Message */}
-          {submitStatus.type && (
-            <div
-              className={`mb-10 p-4 rounded-xl flex items-start gap-3 shadow-sm ${
-                submitStatus.type === "success"
-                  ? "bg-green-50 border border-green-200"
-                  : "bg-red-50 border border-red-200"
-              }`}
-            >
-              {submitStatus.type === "success" ? (
-                <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" />
-              ) : (
-                <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
-              )}
-              <p
-                className={`${typeBody} font-medium ${
-                  submitStatus.type === "success"
-                    ? "text-green-800"
-                    : "text-red-800"
-                }`}
-              >
-                {submitStatus.message}
-              </p>
+        <div className="mx-auto max-w-7xl px-4 pb-16 pt-12 sm:px-6 md:pb-24 md:pt-16 lg:px-8">
+          {/* CHANGED: status message moved INTO the form card (see below), so
+              the whole page no longer jumps down after submitting. */}
+
+          <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-2 lg:gap-16">
+            {/* CHANGED: sticky moved from the form to the info column. The
+                form is the taller side, so the info stays in view while the
+                visitor scrolls down the form. */}
+            <div className="lg:sticky lg:top-28">
+              <ContactInfoCards settings={settings} />
             </div>
-          )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
-            {/* Left Column: Contact Info & Map */}
-            <ContactInfoCards settings={settings} />
-
-            {/* Right Column: Contact Form */}
-            <div className="bg-white rounded-3xl shadow-xl p-8 md:p-12 border border-gray-100 relative overflow-hidden lg:sticky lg:top-32">
-              {/* Decorative background blur */}
-              <div className="absolute top-0 right-0 w-80 h-80 bg-blue-100 rounded-full blur-3xl -mr-40 -mt-40 pointer-events-none opacity-50"></div>
-              <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-100 rounded-full blur-3xl -ml-32 -mb-32 pointer-events-none opacity-50"></div>
-
-              <div className="relative">
-                <div className="text-center mb-10">
-                  <div className="w-20 h-20 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-6 text-blue-600 shadow-sm">
-                    <Send className="w-10 h-10 transform -rotate-12 ml-1" />
-                  </div>
-                  <h2 className={`${typeH2} text-gray-900 mb-3`}>
+            {/* CHANGED: form card overlaps the hero on desktop (lg:-mt-32),
+                plain white card, no purple/blue blur blobs. */}
+            <div className="relative z-10 overflow-hidden rounded-3xl border border-[#F1F5FA] bg-white p-6 shadow-xl shadow-slate-900/5 sm:p-8 md:p-10 lg:-mt-32">
+              {/* CHANGED: compact left-aligned header (icon beside title)
+                  so the card is shorter and fits a laptop screen better */}
+              <div className="mb-8 flex items-start gap-4">
+                <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-[#008080]/10 text-[#008080]">
+                  <Send className="ml-0.5 h-5 w-5 -rotate-12" />
+                </div>
+                <div>
+                  <h2 className={`${typeH2} mb-1 text-gray-900`}>
                     Send Us a Message
                   </h2>
-                  <p className={`${typeLead} text-gray-600`}>
+                  <p className={`${typeBody} text-gray-600`}>
                     Fill out the form below and we&apos;ll get back to you
                     shortly.
                   </p>
                 </div>
-
-                <ContactForm onStatus={setSubmitStatus} />
               </div>
+
+              {/* CHANGED: status message now lives in the card; success uses
+                  brand teal instead of green */}
+              {submitStatus.type && (
+                <div
+                  role={submitStatus.type === "success" ? "status" : "alert"}
+                  className={`mb-6 flex items-start gap-3 rounded-xl border p-4 ${
+                    submitStatus.type === "success"
+                      ? "border-[#008080]/30 bg-[#008080]/10"
+                      : "border-red-200 bg-red-50"
+                  }`}
+                >
+                  {submitStatus.type === "success" ? (
+                    <CheckCircle className="mt-0.5 h-6 w-6 flex-shrink-0 text-[#008080]" />
+                  ) : (
+                    <AlertCircle className="mt-0.5 h-6 w-6 flex-shrink-0 text-red-600" />
+                  )}
+                  <p
+                    className={`${typeBody} font-medium ${
+                      submitStatus.type === "success"
+                        ? "text-[#006060]"
+                        : "text-red-800"
+                    }`}
+                  >
+                    {submitStatus.message}
+                  </p>
+                </div>
+              )}
+
+              <ContactForm onStatus={setSubmitStatus} />
             </div>
+          </div>
+
+          {/* CHANGED: map is now full-width under both columns */}
+          <div className="mt-16 md:mt-20">
+            <ContactMap settings={settings} />
           </div>
         </div>
       </main>

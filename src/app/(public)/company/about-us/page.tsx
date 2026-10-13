@@ -23,9 +23,7 @@ const AboutUs = async () => {
         {/* Hero Section */}
         <div className="bg-slate-50 pt-16">
           <Container className="py-20 text-center lg:py-28">
-            <h1 className={`${typeDisplay} text-gray-900`}>
-              About Us
-            </h1>
+            <h1 className={`${typeDisplay} text-gray-900`}>About Us</h1>
             <p className={`mt-6 max-w-3xl mx-auto text-gray-600 ${typeLead}`}>
               From a pioneering idea to Malaysia’s most comprehensive HR
               solution.
