@@ -7,6 +7,7 @@ import { RefreshCw, Upload, X, ChevronDown, ChevronUp } from "lucide-react";
 import type { Database } from "@/types/supabase";
 import { getBrowserClient } from "@/lib/client";
 import { compressImage } from "../utils/image-compressor";
+import Image from "next/image";
 
 type Post = Database["public"]["Tables"]["posts"]["Row"];
 
@@ -282,7 +283,7 @@ export default function Step2SEO({
                   />
                   {post.seo_og_image ? (
                     <div className="relative group">
-                      <img
+                      <Image
                         src={post.seo_og_image}
                         alt="OG preview"
                         className="w-full h-32 object-cover rounded-lg"
@@ -354,7 +355,7 @@ export default function Step2SEO({
               {showSocialPreview && (
                 <div className="p-4">
                   <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                    <img
+                    <Image
                       src={previewImage}
                       alt="Social preview"
                       className="w-full h-40 object-cover bg-gray-100 dark:bg-gray-700"

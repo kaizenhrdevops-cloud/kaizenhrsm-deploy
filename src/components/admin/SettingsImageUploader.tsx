@@ -53,8 +53,6 @@ export default function SettingsImageUploader({
       {/* Image Preview Area */}
       {value && (
         <div className="relative w-full max-w-md h-48 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden group border border-gray-200 dark:border-gray-600">
-          {/* Use img tag for broad compatibility with external URLs */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={value}
             alt={`${label} Preview`}

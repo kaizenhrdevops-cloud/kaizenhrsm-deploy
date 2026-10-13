@@ -24,6 +24,8 @@ import {
   exportSizeForRatio,
   ratioTabText,
 } from "@/lib/image-ratios";
+import Image from "next/image";
+
 import type { RatioOption } from "@/lib/image-ratios";
 
 interface BannerImageEditorProps {
@@ -84,7 +86,7 @@ function computeFitScale(
   ratioNum: number,
   naturalW: number,
   naturalH: number,
-  totalDeg: number
+  totalDeg: number,
 ): number {
   const rad = ((totalDeg % 360) * Math.PI) / 180;
   const cosA = Math.abs(Math.cos(rad));
@@ -116,7 +118,7 @@ export default function BannerImageEditor({
   const ratioList = ratiosProp || BANNER_RATIOS;
   const hideRatioSelector = ratioList.length <= 1;
   const [internalRatio, setInternalRatio] = useState(
-    defaultRatio || ratioList[0]?.value || DEFAULT_BANNER_RATIO
+    defaultRatio || ratioList[0]?.value || DEFAULT_BANNER_RATIO,
   );
   const ratio = ratioProp ?? internalRatio;
   const ratioNum = parseRatio(ratio);
@@ -127,7 +129,7 @@ export default function BannerImageEditor({
   // square/portrait (1:1, 4:3, 2:3) stay compact instead of towering.
   // On mobile (< 640px), min(100%, ...) gracefully takes full container width.
   const maxFrameW = Math.round(
-    Math.min(720, Math.max(280, desktopMaxHeight * ratioNum))
+    Math.min(720, Math.max(280, desktopMaxHeight * ratioNum)),
   );
   const controlsMaxW = Math.max(540, maxFrameW);
 
@@ -157,9 +159,7 @@ export default function BannerImageEditor({
     startOffsetX: number;
     startOffsetY: number;
   } | null>(null);
-  const pointersRef = useRef<Map<number, { x: number; y: number }>>(
-    new Map()
-  );
+  const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
   const lastPinchDistRef = useRef(0);
   const lastSavedImageRef = useRef(value);
 
@@ -185,12 +185,12 @@ export default function BannerImageEditor({
   const clampOffsetX = useCallback(
     (v: number) =>
       clamp(v, Math.min(0, frameW - dispW) - bbPadX, Math.max(0, bbPadX)),
-    [frameW, dispW, bbPadX]
+    [frameW, dispW, bbPadX],
   );
   const clampOffsetY = useCallback(
     (v: number) =>
       clamp(v, Math.min(0, frameH - dispH) - bbPadY, Math.max(0, bbPadY)),
-    [frameH, dispH, bbPadY]
+    [frameH, dispH, bbPadY],
   );
 
   // --- Effects ---
@@ -271,7 +271,7 @@ export default function BannerImageEditor({
       });
       onChange(publicUrl);
       toast.success(
-        `Image saved (${(size / 1024).toFixed(0)} KB, compressed).`
+        `Image saved (${(size / 1024).toFixed(0)} KB, compressed).`,
       );
     } catch {
       toast.error("Failed to upload image. Please try again.");
@@ -332,7 +332,7 @@ export default function BannerImageEditor({
     } catch {
       if (objUrl) URL.revokeObjectURL(objUrl);
       toast.error(
-        "Couldn't load that image for cropping (remote host blocked it). Upload the file directly instead."
+        "Couldn't load that image for cropping (remote host blocked it). Upload the file directly instead.",
       );
     } finally {
       setLoadingDraft(false);
@@ -359,7 +359,7 @@ export default function BannerImageEditor({
       const pts = [...map.values()];
       lastPinchDistRef.current = Math.hypot(
         pts[1].x - pts[0].x,
-        pts[1].y - pts[0].y
+        pts[1].y - pts[0].y,
       );
     }
   };
@@ -372,10 +372,7 @@ export default function BannerImageEditor({
     if (map.size >= 2 && lastPinchDistRef.current > 0) {
       // Pinch-to-zoom
       const pts = [...map.values()];
-      const dist = Math.hypot(
-        pts[1].x - pts[0].x,
-        pts[1].y - pts[0].y
-      );
+      const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
       const scale = dist / lastPinchDistRef.current;
       handleZoom(zoom * scale);
       lastPinchDistRef.current = dist;
@@ -415,15 +412,15 @@ export default function BannerImageEditor({
       clamp(
         -fracX * Math.max(0, newSize.w - frameW),
         Math.min(0, frameW - newSize.w),
-        0
-      )
+        0,
+      ),
     );
     setOffsetY(
       clamp(
         -fracY * Math.max(0, newSize.h - frameH),
         Math.min(0, frameH - newSize.h),
-        0
-      )
+        0,
+      ),
     );
   };
 
@@ -497,7 +494,7 @@ export default function BannerImageEditor({
       }
 
       const blob = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob(resolve, "image/webp", 0.9)
+        canvas.toBlob(resolve, "image/webp", 0.9),
       );
       if (!blob) throw new Error("export failed");
       const bannerFile = new File([blob], "banner.webp", {
@@ -517,7 +514,7 @@ export default function BannerImageEditor({
       onChange(publicUrl);
       closeDraft();
       toast.success(
-        `Banner saved — ${exportSize.w}×${exportSize.h} WebP, ${(size / 1024).toFixed(0)} KB.`
+        `Banner saved — ${exportSize.w}×${exportSize.h} WebP, ${(size / 1024).toFixed(0)} KB.`,
       );
     } catch {
       toast.error("Couldn't save the banner. Try a different image.");
@@ -593,7 +590,7 @@ export default function BannerImageEditor({
             >
               {frameW > 0 && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <Image
                   src={draft.src}
                   alt="Banner crop preview"
                   draggable={false}
@@ -725,8 +722,7 @@ export default function BannerImageEditor({
                 className="relative w-full rounded-lg overflow-hidden group border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 shadow-sm"
                 style={{ aspectRatio: String(ratioNum) }}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                   src={value}
                   alt={`${label} Preview`}
                   className="w-full h-full object-cover"

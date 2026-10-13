@@ -19,6 +19,8 @@ import {
   Link2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
+
 
 type Post = Database["public"]["Tables"]["posts"]["Row"];
 type PostBlock = Database["public"]["Tables"]["post_blocks"]["Row"];
@@ -350,7 +352,7 @@ export default function Step4Review({
 
                     <div className={cn(device === "lg" ? "md:col-span-3" : "")}>
                       {post.featured_image ? (
-                        <img
+                        <Image
                           src={post.featured_image}
                           alt={post.title}
                           className="w-full h-56 md:h-80 object-cover rounded-lg"

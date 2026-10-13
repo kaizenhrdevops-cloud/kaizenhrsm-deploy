@@ -6,6 +6,7 @@ import { UploadCloud, X } from "lucide-react";
 import { getBrowserClient } from "@/lib/client";
 import type { Database } from "@/types/supabase";
 import { compressImage } from "../utils/image-compressor";
+import Image from "next/image";
 
 type Post = Database["public"]["Tables"]["posts"]["Row"];
 
@@ -25,7 +26,7 @@ export default function FeaturedImageUploader({
   const supabase = getBrowserClient();
 
   const handleFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -85,7 +86,7 @@ export default function FeaturedImageUploader({
       {post.featured_image ? (
         <div className="space-y-3">
           <div className="relative group">
-            <img
+            <Image
               src={post.featured_image}
               alt={post.featured_image_alt || "Featured image preview"}
               className="w-full h-auto max-h-80 object-contain rounded-md"

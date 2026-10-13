@@ -8,6 +8,7 @@ import { autoSaveDraft } from "../../posts/actions";
 import { BlockWrapper } from "./block-wrapper";
 import { createDefaultContent, type BlockType } from "./block-defaults";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 
 // Dynamically import the other blocks to reduce initial bundle size
 const ParagraphBlock = dynamic(() => import("./paragraph-block"), {
@@ -514,8 +515,7 @@ function DragPreviewCard({ block }: { block: PostBlock }) {
       </div>
       <div className="px-4 py-3">
         {block.type === "image" && (block.content as any)?.url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             src={(block.content as any).url}
             alt=""
             className="h-28 w-full rounded-lg object-cover"
