@@ -43,11 +43,17 @@ const ContactUsPage = () => {
         {/* Hero Section */}
         <div className="relative overflow-hidden bg-gradient-to-br from-blue-900 via-blue-800 to-[#008080] text-white">
           <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-10"></div>
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-24 md:pt-32 md:pb-28 text-center">
+          {/* CHANGED: the fixed navbar (80px) covers the top of this band, so
+      top padding = bottom padding + 80px. That centers the text in the
+      VISIBLE area, not the whole box. If the navbar height changes,
+      update the 80px below. */}
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-[calc(80px+4rem)] pb-16 text-center flex flex-col items-center justify-center min-h-[400px] md:min-h-[460px]">
+            {" "}
+            {/* CHANGED: pt/pb */}
             <h1 className={`${typeDisplay} mb-6`}>
               Let&apos;s Start a Conversation
             </h1>
-            <p className={`${typeLead} text-blue-100 max-w-3xl mx-auto`}>
+            <p className={`${typeLead} text-blue-100 max-w-3xl`}>
               Whether you have questions about our modules or need a custom
               solution, our team is ready to help you transform your HR.
             </p>
