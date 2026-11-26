@@ -290,6 +290,59 @@ export type Database = {
         }
         Relationships: []
       }
+      navbar_items: {
+        Row: {
+          created_at: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          dropdown_key: string | null
+          footer_section: string | null
+          href: string | null
+          is_visible: boolean
+          item_type: string
+          key: string
+          label: string
+          order_index: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          dropdown_key?: string | null
+          footer_section?: string | null
+          href?: string | null
+          is_visible?: boolean
+          item_type: string
+          key: string
+          label: string
+          order_index?: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          dropdown_key?: string | null
+          footer_section?: string | null
+          href?: string | null
+          is_visible?: boolean
+          item_type?: string
+          key?: string
+          label?: string
+          order_index?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "navbar_items_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       newsletter_campaigns: {
         Row: {
           completed_at: string | null

@@ -1,3 +1,5 @@
+// src/middleware.ts
+
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
@@ -101,7 +103,10 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(redirectUrl);
     }
 
-    if (pathname.startsWith("/admin/users")) {
+    if (
+      pathname.startsWith("/admin/users") ||
+      pathname.startsWith("/admin/navigation")
+    ) {
       if (profile.role !== "super_admin") {
         return NextResponse.redirect(new URL("/admin/dashboard", req.url));
       }

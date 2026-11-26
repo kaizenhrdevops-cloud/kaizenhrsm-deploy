@@ -4,14 +4,12 @@
 
 import React from "react";
 import Link from "next/link";
-import {
-  resourcesSubmenus,
-  companySubmenus,
-} from "@/data/submenus";
+import { resourcesSubmenus, companySubmenus } from "@/data/submenus";
 import { FaApple, FaGooglePlay } from "react-icons/fa";
 import { getSocialIcon } from "./social-icons";
 import type { PublicSettings } from "@/lib/public-settings";
 import { useSettings } from "./SettingsProvider";
+import { useNavItems } from "./NavProvider";
 import { useHrmsSubmenus } from "./navbar/useHrmsSubmenus";
 import NewsletterForm from "./NewsletterForm";
 import { typeMeta, typeSmall } from "../ui/typography";
@@ -35,8 +33,8 @@ function parseSocialLinks(raw: string | undefined) {
   }
 }
 
-// Client component reading settings from (public)/layout's provider —
-// no own fetch, so no client-side waterfall (see SettingsProvider).
+// Client component reading settings & nav visibility from (public)/layout's
+// providers — no own fetches, so no client-side waterfall.
 const Footer = () => {
   const settings: PublicSettings = {
     ...FALLBACK_SETTINGS,
@@ -46,6 +44,17 @@ const Footer = () => {
   // Parse social links safely
   const socialLinks = parseSocialLinks(settings.social_links);
 
+  // Active top-level nav items — hides/removes Footer sections when hidden or deleted
+  const navItems = useNavItems();
+  const hrmsNav = navItems.find((item) => item.footer_section === "hrms");
+  const secondarySections = navItems.filter(
+    (item) =>
+      item.footer_section === "resources" || item.footer_section === "company"
+  );
+
+  const showHrms = Boolean(hrmsNav);
+  const hasSecondary = secondarySections.length > 0;
+
   // Static HRMS links + any NEW published CMS pages from /admin/hrms.
   const hrmsSubmenus = useHrmsSubmenus();
 
@@ -54,13 +63,37 @@ const Footer = () => {
   const hrmsCol1 = hrmsSubmenus.slice(0, midpoint);
   const hrmsCol2 = hrmsSubmenus.slice(midpoint);
 
+  // Dynamically adapt 12-column spans when sections are hidden or deleted
+  const brandColClass =
+    !showHrms && !hasSecondary
+      ? "md:col-span-12"
+      : showHrms && hasSecondary
+        ? "md:col-span-3 xl:col-span-3"
+        : showHrms
+          ? "md:col-span-4 xl:col-span-4"
+          : secondarySections.length === 2
+            ? "md:col-span-4 xl:col-span-4"
+            : "md:col-span-6 xl:col-span-6";
+
+  const hrmsColClass = hasSecondary
+    ? "md:col-span-6 xl:col-span-6"
+    : "md:col-span-8 xl:col-span-8";
+
+  const secondaryContainerClass = showHrms
+    ? secondarySections.length === 2
+      ? "md:col-span-3 xl:col-span-3 grid grid-cols-2 md:grid-cols-1 xl:grid-cols-2 gap-x-6 gap-y-8"
+      : "md:col-span-3 xl:col-span-3 grid grid-cols-1 gap-y-8"
+    : secondarySections.length === 2
+      ? "md:col-span-8 xl:col-span-8 grid grid-cols-2 gap-x-8 gap-y-8"
+      : "md:col-span-6 xl:col-span-6 grid grid-cols-1 gap-y-8";
+
   return (
     <footer className="bg-[#008080] text-white">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-14 sm:py-16">
         {/* TOP SECTION: LINKS */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-x-8 gap-y-10 mb-12">
           {/* Column 1: Company Info */}
-          <div className="md:col-span-3 xl:col-span-3 space-y-3">
+          <div className={`${brandColClass} space-y-3`}>
             <h2 className="text-2xl font-bold tracking-tight text-white">
               Kaizen
             </h2>
@@ -70,80 +103,79 @@ const Footer = () => {
           </div>
 
           {/* Columns 2 & 3: HRMS Modules (2 sub-columns) */}
-          <div className="md:col-span-6 xl:col-span-6">
-            <h3 className="text-base font-semibold uppercase tracking-wider text-white mb-4">
-              HRMS
-            </h3>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-2.5 text-sm text-teal-100/80">
-              <ul className="space-y-2.5 min-w-0">
-                {hrmsCol1.map((item, index) => (
-                  <li key={index} className="truncate">
-                    <Link
-                      href={item.path}
-                      className="hover:text-white transition-colors duration-150"
-                      title={item.name}
-                    >
-                      {item.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-              <ul className="space-y-2.5 min-w-0">
-                {hrmsCol2.map((item, index) => (
-                  <li key={index} className="truncate">
-                    <Link
-                      href={item.path}
-                      className="hover:text-white transition-colors duration-150"
-                      title={item.name}
-                    >
-                      {item.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-
-          {/* Columns 4 & 5: Resources & Company */}
-          <div className="md:col-span-3 xl:col-span-3 grid grid-cols-2 md:grid-cols-1 xl:grid-cols-2 gap-x-6 gap-y-8">
-            {/* Resources */}
-            <div>
+          {showHrms && hrmsNav && (
+            <div className={hrmsColClass}>
               <h3 className="text-base font-semibold uppercase tracking-wider text-white mb-4">
-                Resources
+                {hrmsNav.label}
               </h3>
-              <ul className="space-y-2.5 text-sm text-teal-100/80">
-                {resourcesSubmenus.map((item, index) => (
-                  <li key={index} className="truncate">
-                    <Link
-                      href={item.path}
-                      className="hover:text-white transition-colors duration-150"
-                    >
-                      {item.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2.5 text-sm text-teal-100/80">
+                <ul className="space-y-2.5 min-w-0">
+                  {hrmsCol1.map((item, index) => (
+                    <li key={index} className="truncate">
+                      <Link
+                        href={item.path}
+                        className="hover:text-white transition-colors duration-150"
+                        title={item.name}
+                      >
+                        {item.name}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+                <ul className="space-y-2.5 min-w-0">
+                  {hrmsCol2.map((item, index) => (
+                    <li key={index} className="truncate">
+                      <Link
+                        href={item.path}
+                        className="hover:text-white transition-colors duration-150"
+                        title={item.name}
+                      >
+                        {item.name}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
+          )}
 
-            {/* Company */}
-            <div>
-              <h3 className="text-base font-semibold uppercase tracking-wider text-white mb-4">
-                Company
-              </h3>
-              <ul className="space-y-2.5 text-sm text-teal-100/80">
-                {companySubmenus.map((item, index) => (
-                  <li key={index} className="truncate">
-                    <Link
-                      href={item.path}
-                      className="hover:text-white transition-colors duration-150"
-                    >
-                      {item.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+          {/* Columns 4 & 5: Resources & Company (synced with Navbar visibility, labels & order) */}
+          {hasSecondary && (
+            <div className={secondaryContainerClass}>
+              {secondarySections.map((section) => {
+                const links =
+                  section.footer_section === "resources"
+                    ? resourcesSubmenus
+                    : companySubmenus;
+
+                return (
+                  <div key={section.key}>
+                    <h3 className="text-base font-semibold uppercase tracking-wider text-white mb-4">
+                      {section.label}
+                    </h3>
+                    <ul className="space-y-2.5 text-sm text-teal-100/80">
+                      {links.map((item, index) => {
+                        const isPdf = /\.pdf$/i.test(item.path);
+                        return (
+                          <li key={index} className="truncate">
+                            <Link
+                              href={item.path}
+                              prefetch={!isPdf}
+                              target={isPdf ? "_blank" : undefined}
+                              rel={isPdf ? "noopener noreferrer" : undefined}
+                              className="hover:text-white transition-colors duration-150"
+                            >
+                              {item.name}
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                );
+              })}
             </div>
-          </div>
+          )}
         </div>
 
         {/* BORDER */}
@@ -198,7 +230,9 @@ const Footer = () => {
               >
                 <FaApple size={24} className="shrink-0 text-white" />
                 <div className="text-left min-w-0">
-                  <div className={`${typeMeta} text-gray-300 truncate leading-tight`}>
+                  <div
+                    className={`${typeMeta} text-gray-300 truncate leading-tight`}
+                  >
                     Download on the
                   </div>
                   <div className="font-semibold text-sm text-white whitespace-nowrap truncate leading-tight">
@@ -214,7 +248,9 @@ const Footer = () => {
               >
                 <FaGooglePlay size={20} className="shrink-0 text-white" />
                 <div className="text-left min-w-0">
-                  <div className={`${typeMeta} text-gray-300 truncate leading-tight`}>
+                  <div
+                    className={`${typeMeta} text-gray-300 truncate leading-tight`}
+                  >
                     GET IT ON
                   </div>
                   <div className="font-semibold text-sm text-white whitespace-nowrap truncate leading-tight">
@@ -227,7 +263,9 @@ const Footer = () => {
         </div>
 
         {/* Copyright Section */}
-        <div className={`mt-12 pt-8 border-t border-white/15 text-center text-teal-100/70 ${typeMeta}`}>
+        <div
+          className={`mt-12 pt-8 border-t border-white/15 text-center text-teal-100/70 ${typeMeta}`}
+        >
           <p>
             {settings.footer_copyright_text ||
               "© KaiZenHR Sdn Bhd 2025. All Rights Reserved."}

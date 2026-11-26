@@ -1,3 +1,4 @@
+// src/components/layout/SettingsProvider.tsx
 "use client";
 
 import { createContext, useContext } from "react";

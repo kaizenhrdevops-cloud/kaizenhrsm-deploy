@@ -1,3 +1,4 @@
+// src/app/layout.tsx
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "@/app/styles/globals.css";
@@ -14,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL || "https://kaizenhrms.com"
+    process.env.NEXT_PUBLIC_SITE_URL || "https://kaizenhrms.com",
   ),
   title: {
     default: "KaizenHR — Malaysia's Tier 1 Enterprise HR Solution",

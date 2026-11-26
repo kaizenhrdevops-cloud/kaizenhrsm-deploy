@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { resourcesSubmenus, companySubmenus } from "@/data/submenus";
+import { useNavItems } from "../NavProvider";
 import { useHrmsSubmenus } from "./useHrmsSubmenus";
 import type { SubmenuItem } from "./NavItems";
 
@@ -135,6 +136,7 @@ export default function MobileMenu({
   onToggle: (id: string) => void;
   onNavigate: () => void;
 }) {
+  const navItems = useNavItems();
   // Static entries + any NEW published CMS pages from /admin/hrms.
   const hrmsItems = useHrmsSubmenus();
   const menuRef = useRef<HTMLDivElement>(null);
@@ -166,52 +168,66 @@ export default function MobileMenu({
       inert={!open}
     >
       <div className="space-y-1 max-w-lg mx-auto">
-        <MobileSection
-          id="hrms"
-          title="HRMS"
-          items={hrmsItems}
-          openSubmenu={openSubmenu}
-          onToggle={onToggle}
-          onNavigate={onNavigate}
-          boxed
-        />
-        <MobileSection
-          id="resources"
-          title="Resources"
-          items={resourcesSubmenus}
-          openSubmenu={openSubmenu}
-          onToggle={onToggle}
-          onNavigate={onNavigate}
-        />
-        <MobileLink
-          href="/resources/blog-articles"
-          active={pathname.startsWith("/resources/blog-articles")}
-          onNavigate={onNavigate}
-        >
-          Blog & Articles
-        </MobileLink>
-        <MobileLink
-          href="/company/developments"
-          active={pathname.startsWith("/company/developments")}
-          onNavigate={onNavigate}
-        >
-          Developments
-        </MobileLink>
-        <MobileLink
-          href="/company/careers"
-          active={pathname.startsWith("/company/careers")}
-          onNavigate={onNavigate}
-        >
-          Careers
-        </MobileLink>
-        <MobileSection
-          id="company"
-          title="Company"
-          items={companySubmenus}
-          openSubmenu={openSubmenu}
-          onToggle={onToggle}
-          onNavigate={onNavigate}
-        />
+        {navItems.map((item) => {
+          if (item.item_type === "dropdown" && item.dropdown_key) {
+            if (item.dropdown_key === "hrms") {
+              return (
+                <MobileSection
+                  key={item.key}
+                  id="hrms"
+                  title={item.label}
+                  items={hrmsItems}
+                  openSubmenu={openSubmenu}
+                  onToggle={onToggle}
+                  onNavigate={onNavigate}
+                  boxed
+                />
+              );
+            }
+            if (item.dropdown_key === "resources") {
+              return (
+                <MobileSection
+                  key={item.key}
+                  id="resources"
+                  title={item.label}
+                  items={resourcesSubmenus}
+                  openSubmenu={openSubmenu}
+                  onToggle={onToggle}
+                  onNavigate={onNavigate}
+                />
+              );
+            }
+            if (item.dropdown_key === "company") {
+              return (
+                <MobileSection
+                  key={item.key}
+                  id="company"
+                  title={item.label}
+                  items={companySubmenus}
+                  openSubmenu={openSubmenu}
+                  onToggle={onToggle}
+                  onNavigate={onNavigate}
+                />
+              );
+            }
+          }
+
+          if (item.item_type === "link" && item.href) {
+            return (
+              <MobileLink
+                key={item.key}
+                href={item.href}
+                active={pathname.startsWith(item.href)}
+                onNavigate={onNavigate}
+              >
+                {item.label}
+              </MobileLink>
+            );
+          }
+
+          return null;
+        })}
+
         <div className="pt-6 pb-4">
           <Link
             href="/company/contact-us"

@@ -1,7 +1,10 @@
 // src/app/(public)/layout.tsx
 import React from "react";
 import { getPublicSettings } from "@/lib/public-settings";
+import { getPublicNavItems } from "@/lib/nav-items";
+import { DEFAULT_NAV_ITEMS } from "@/data/navbar-defaults";
 import { SettingsProvider } from "@/components/layout/SettingsProvider";
+import { NavProvider } from "@/components/layout/NavProvider";
 
 // Re-check the DB-backed maintenance flag at most once a minute.
 // (Middleware only checks the MAINTENANCE_MODE env var so it stays
@@ -34,19 +37,25 @@ export default async function PublicLayout({
     return <MaintenancePage />;
   }
 
-  // Single cached settings read per request (cross-request cached 1hr,
-  // invalidated on admin save). Shared with client components below —
-  // they must NOT fetch settings themselves.
-  let settings = {};
-  try {
-    settings = await getPublicSettings();
-  } catch {
-    // If settings can't load, fail open and render the page.
-  }
+  // Single cached settings + navigation read per request (cross-request
+  // cached 1hr, invalidated instantly on admin save). Shared with client
+  // components below — they must NOT fetch settings/nav themselves.
+  const [settings, navItems] = await Promise.all([
+    getPublicSettings().catch(() => ({})),
+    getPublicNavItems().catch(() => DEFAULT_NAV_ITEMS),
+  ]);
 
-  if (isMaintenanceOn((settings as Record<string, unknown>).enable_maintenance_mode)) {
+  if (
+    isMaintenanceOn(
+      (settings as Record<string, unknown>).enable_maintenance_mode
+    )
+  ) {
     return <MaintenancePage />;
   }
 
-  return <SettingsProvider value={settings}>{children}</SettingsProvider>;
+  return (
+    <SettingsProvider value={settings}>
+      <NavProvider value={navItems}>{children}</NavProvider>
+    </SettingsProvider>
+  );
 }

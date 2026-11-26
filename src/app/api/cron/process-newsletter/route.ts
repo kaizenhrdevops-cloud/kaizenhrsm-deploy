@@ -1,7 +1,10 @@
 // src/app/api/cron/process-newsletter/route.ts
 import { NextResponse, type NextRequest } from "next/server";
+import { revalidateTag } from "next/cache";
 import { processNewsletterQueue } from "@/lib/newsletter-queue";
 import { getServiceClient } from "@/lib/supabase-admin";
+import { PUBLIC_NAV_TAG } from "@/lib/cache-tags";
+import { BIN_RETENTION_DAYS } from "@/data/navbar-defaults";
 
 // ADD THIS LINE EXACTLY HERE
 export const dynamic = 'force-dynamic';
@@ -121,6 +124,48 @@ async function cleanupEmailAndAbuseLogs() {
     console.error("CRON: Error in cleanupEmailAndAbuseLogs:", error);
   }
 }
+// Permanently purge navbar items that have spent 30+ days in the bin.
+async function cleanupDeletedNavItems() {
+  const supabase = getServiceClient();
+  try {
+    const cutoffISO = new Date(
+      Date.now() - BIN_RETENTION_DAYS * 24 * 60 * 60 * 1000
+    ).toISOString();
+
+    const { data: purged, error } = await supabase
+      .from("navbar_items")
+      .delete()
+      .not("deleted_at", "is", null)
+      .lt("deleted_at", cutoffISO)
+      .select("key, label");
+
+    if (error) {
+      console.error("CRON: Failed to clean navbar_items bin:", error.message);
+      return;
+    }
+
+    if (purged && purged.length > 0) {
+      console.log(
+        `CRON: Permanently purged ${purged.length} expired navbar_items from bin.`
+      );
+
+      await supabase.from("admin_audit_log").insert({
+        admin_id: null,
+        action: "PURGE_EXPIRED_NAV_ITEMS",
+        details: {
+          message: `Daily cron permanently purged ${purged.length} expired navbar menu(s) after ${BIN_RETENTION_DAYS} days in the bin.`,
+          purged_items: purged.map((p) => `${p.label} (${p.key})`),
+        },
+      });
+
+      revalidateTag(PUBLIC_NAV_TAG);
+    } else {
+      console.log("CRON: No expired navbar_items to purge from bin.");
+    }
+  } catch (error) {
+    console.error("CRON: Error in cleanupDeletedNavItems:", error);
+  }
+}
 // ---------------------------------
 
 export async function GET(req: NextRequest) {
@@ -141,6 +186,7 @@ export async function GET(req: NextRequest) {
     if (isDailyRun) {
       await cleanupAuditLogs();
       await cleanupEmailAndAbuseLogs();
+      await cleanupDeletedNavItems();
     }
 
     // 3. Run Newsletter Queue (low-priority mail, quota-aware)
@@ -155,7 +201,9 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ 
       newsletter: result,
-      maintenance: isDailyRun ? "Log cleanup attempted" : "skipped",
+      maintenance: isDailyRun
+        ? "Log and navbar bin cleanup attempted"
+        : "skipped",
     }, { status: 200 });
 
   } catch (error: any) {

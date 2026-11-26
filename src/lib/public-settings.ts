@@ -1,3 +1,4 @@
+// src/lib/public-settings.ts
 "use server";
 
 import { cache } from "react";

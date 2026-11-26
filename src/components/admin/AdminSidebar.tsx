@@ -19,6 +19,7 @@ import {
   ScrollText,
   Send, // <-- 1. IMPORT THE NEW ICON
   PanelLeftClose,
+  PanelTop,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
@@ -225,6 +226,11 @@ export default function AdminSidebar({
             <div>
               <SectionHeader title="System" />
               <div className="space-y-1">
+                <NavLink
+                  href="/admin/navigation"
+                  icon={PanelTop}
+                  label="Navigation"
+                />
                 <NavLink
                   href="/admin/settings"
                   icon={Shield}

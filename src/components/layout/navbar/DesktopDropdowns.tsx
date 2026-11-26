@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { resourcesSubmenus, companySubmenus } from "@/data/submenus";
+import { useNavItems } from "../NavProvider";
 import { DropdownItem } from "./NavItems";
 import { useHrmsSubmenus } from "./useHrmsSubmenus";
 
@@ -21,14 +22,26 @@ export default function DesktopDropdowns({
   onLeave: () => void;
   onClose: () => void;
 }) {
+  const navItems = useNavItems();
   const hrmsSubmenus = useHrmsSubmenus();
   const [scrollAtBottom, setScrollAtBottom] = useState(false);
   const [hasOverflow, setHasOverflow] = useState(false);
 
+  const visibleDropdownKeys = new Set(
+    navItems
+      .filter((item) => item.item_type === "dropdown" && item.dropdown_key)
+      .map((item) => item.dropdown_key as string)
+  );
+
+  const effectiveDropdown =
+    activeDropdown && visibleDropdownKeys.has(activeDropdown)
+      ? activeDropdown
+      : null;
+
   // Monitor scroll in HRMS dropdown to dynamically toggle arrow and detect overflow
   useEffect(() => {
     const el = hrmsDropdownRef.current;
-    if (!el || activeDropdown !== "hrms") return;
+    if (!el || effectiveDropdown !== "hrms") return;
 
     const checkScroll = () => {
       const isOverflowing = el.scrollHeight > el.clientHeight + 10;
@@ -40,7 +53,7 @@ export default function DesktopDropdowns({
     checkScroll();
     el.addEventListener("scroll", checkScroll, { passive: true });
     return () => el.removeEventListener("scroll", checkScroll);
-  }, [activeDropdown, hrmsDropdownRef, hrmsSubmenus]);
+  }, [effectiveDropdown, hrmsDropdownRef, hrmsSubmenus]);
 
   const handleScrollToggle = () => {
     const el = hrmsDropdownRef.current;
@@ -52,7 +65,7 @@ export default function DesktopDropdowns({
     }
   };
 
-  const isVisible = Boolean(activeDropdown && !isClosing);
+  const isVisible = Boolean(effectiveDropdown && !isClosing);
 
   return (
     <div
@@ -62,13 +75,13 @@ export default function DesktopDropdowns({
           : "opacity-0 -translate-y-2 pointer-events-none invisible"
       }`}
       onMouseEnter={() => {
-        if (activeDropdown) onEnter(activeDropdown);
+        if (effectiveDropdown) onEnter(effectiveDropdown);
       }}
       onMouseLeave={onLeave}
     >
       <div className="w-full bg-white/98 backdrop-blur-xl border-t border-gray-100 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.12)]">
         {/* HRMS section */}
-        {activeDropdown === "hrms" && (
+        {effectiveDropdown === "hrms" && (
           <div
             ref={hrmsDropdownRef}
             className="max-h-[75vh] overflow-y-auto overscroll-contain transition-opacity duration-200"
@@ -101,7 +114,7 @@ export default function DesktopDropdowns({
         )}
 
         {/* Resources section */}
-        {activeDropdown === "resources" && (
+        {effectiveDropdown === "resources" && (
           <div className="max-w-7xl mx-auto p-8 transition-opacity duration-200">
             <div className="flex flex-wrap justify-center gap-6">
               {resourcesSubmenus.map((item, index) => (
@@ -117,7 +130,7 @@ export default function DesktopDropdowns({
         )}
 
         {/* Company section */}
-        {activeDropdown === "company" && (
+        {effectiveDropdown === "company" && (
           <div className="max-w-7xl mx-auto p-8 transition-opacity duration-200">
             <div className="flex flex-wrap justify-center gap-6">
               {companySubmenus.map((item, index) => (

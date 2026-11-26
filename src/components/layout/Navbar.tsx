@@ -5,11 +5,13 @@ import React, { useState, useEffect, useRef } from "react";
 import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useNavItems } from "./NavProvider";
 import { NavLink, DropdownTrigger } from "./navbar/NavItems";
 import DesktopDropdowns from "./navbar/DesktopDropdowns";
 import MobileMenu from "./navbar/MobileMenu";
 
 const Navbar = () => {
+  const navItems = useNavItems();
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [isClosing, setIsClosing] = useState(false);
@@ -128,45 +130,34 @@ const Navbar = () => {
           {/* Desktop Navigation — visible on lg (1024px+) screens, responsive spacing prevents clipping */}
           <div className="hidden lg:flex items-center justify-between flex-1 ml-4 xl:ml-8 2xl:ml-12 h-full min-w-0">
             <div className="flex items-center space-x-2 xl:space-x-5 2xl:space-x-7 mx-auto h-full min-w-0">
-              <DropdownTrigger
-                label="HRMS"
-                open={activeDropdown === "hrms"}
-                onEnter={() => openDropdown("hrms")}
-                onLeave={closeDropdown}
-              />
-              <DropdownTrigger
-                label="Resources"
-                open={activeDropdown === "resources"}
-                onEnter={() => openDropdown("resources")}
-                onLeave={closeDropdown}
-              />
+              {navItems.map((item) => {
+                if (item.item_type === "dropdown" && item.dropdown_key) {
+                  const key = item.dropdown_key;
+                  return (
+                    <DropdownTrigger
+                      key={item.key}
+                      label={item.label}
+                      open={activeDropdown === key}
+                      onEnter={() => openDropdown(key)}
+                      onLeave={closeDropdown}
+                    />
+                  );
+                }
 
-              {/* Direct Links */}
-              <NavLink
-                href="/resources/blog-articles"
-                isActive={pathname.startsWith("/resources/blog-articles")}
-              >
-                Blog & Articles
-              </NavLink>
-              <NavLink
-                href="/company/developments"
-                isActive={pathname.startsWith("/company/developments")}
-              >
-                Developments
-              </NavLink>
-              <NavLink
-                href="/company/careers"
-                isActive={pathname.startsWith("/company/careers")}
-              >
-                Careers
-              </NavLink>
+                if (item.item_type === "link" && item.href) {
+                  return (
+                    <NavLink
+                      key={item.key}
+                      href={item.href}
+                      isActive={pathname.startsWith(item.href)}
+                    >
+                      {item.label}
+                    </NavLink>
+                  );
+                }
 
-              <DropdownTrigger
-                label="Company"
-                open={activeDropdown === "company"}
-                onEnter={() => openDropdown("company")}
-                onLeave={closeDropdown}
-              />
+                return null;
+              })}
             </div>
 
             {/* Desktop Contact Us Button */}
