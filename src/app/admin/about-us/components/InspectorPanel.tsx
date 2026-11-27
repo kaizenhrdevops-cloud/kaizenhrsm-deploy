@@ -23,14 +23,19 @@ import {
   MOBILE_STAGE_WIDTH,
   SECTION_GRADIENT_PRESETS,
   type Breakpoint,
-  type CalloutIconName,
+  type ButtonHoverEffect,
   type CanvasElement,
   type ElementFrame,
   type FreeformSection,
+  type ImageFitMode,
+  type ImagePositionPreset,
+  type ImageShapePreset,
   type ShadowPreset,
+  type StudioIconName,
+  type TextTypographyShape,
 } from "@/data/about-us-defaults";
 import { uploadCompressedImage } from "@/lib/storage-upload";
-import { CALLOUT_ICON_MAP } from "@/components/page-builder/CanvasElementContent";
+import { STUDIO_ICON_MAP } from "@/components/page-builder/CanvasElementContent";
 
 const SHADOW_OPTIONS: { value: ShadowPreset; label: string }[] = [
   { value: "none", label: "None" },
@@ -40,13 +45,56 @@ const SHADOW_OPTIONS: { value: ShadowPreset; label: string }[] = [
   { value: "2xl", label: "Elevated" },
 ];
 
-const CALLOUT_ICONS = Object.keys(CALLOUT_ICON_MAP) as CalloutIconName[];
+const TEXT_SHAPE_OPTIONS: { value: TextTypographyShape; label: string }[] = [
+  { value: "plain", label: "Plain Text" },
+  { value: "pill-badge", label: "Pill Badge" },
+  { value: "eyebrow", label: "Eyebrow + Accent Line" },
+  { value: "gradient", label: "Brand Gradient Text" },
+  { value: "left-accent", label: "Left Accent Bar" },
+  { value: "highlight", label: "Soft Highlight Box" },
+  { value: "outline-tag", label: "Outline Tag" },
+];
+
+const IMAGE_SHAPE_OPTIONS: { value: ImageShapePreset; label: string }[] = [
+  { value: "rectangle", label: "Rectangle" },
+  { value: "rounded", label: "Rounded Card" },
+  { value: "circle", label: "Circle / Oval" },
+  { value: "arch", label: "Arch" },
+  { value: "blob", label: "Organic Blob" },
+  { value: "hexagon", label: "Hexagon" },
+  { value: "chamfer", label: "Angled Cut" },
+];
+
+const IMAGE_FIT_OPTIONS: { value: ImageFitMode; label: string }[] = [
+  { value: "cover", label: "Cover (Fill & Crop)" },
+  { value: "contain", label: "Contain (Fit Whole)" },
+  { value: "fill", label: "Fill (Stretch)" },
+  { value: "scale-down", label: "Scale Down" },
+  { value: "none", label: "Original Size" },
+];
+
+const IMAGE_POSITION_OPTIONS: { value: ImagePositionPreset; label: string }[] = [
+  { value: "center", label: "Center" },
+  { value: "top", label: "Top" },
+  { value: "bottom", label: "Bottom" },
+  { value: "left", label: "Left" },
+  { value: "right", label: "Right" },
+];
+
+const BUTTON_HOVER_OPTIONS: { value: ButtonHoverEffect; label: string }[] = [
+  { value: "lift", label: "Lift & Shadow" },
+  { value: "scale", label: "Gentle Scale" },
+  { value: "glow", label: "Brand Glow" },
+  { value: "none", label: "No Animation" },
+];
+
+const ALL_ICONS = Object.keys(STUDIO_ICON_MAP) as StudioIconName[];
 
 const QUICK_TOKENS = [
   { token: "{{years_experience}}", label: "Years Exp" },
   { token: "{{founding_year}}", label: "Founding Yr" },
   { token: "{{company_slogan}}", label: "Slogan" },
-  { token: "{{years_phrase}}", label: "Decades Phrase" },
+  { token: "{{years_phrase}}", label: "Decades" },
 ];
 
 function NumberInput({
@@ -89,40 +137,74 @@ function ColorInput({
   label,
   value,
   onChange,
+  allowTransparent = false,
 }: {
   label: string;
   value: string;
   onChange: (val: string) => void;
+  allowTransparent?: boolean;
 }) {
-  const pickerColor = /^#[0-9a-f]{6}$/i.test(value.trim())
+  const isTransparent = !value || value.trim().toLowerCase() === "transparent";
+  const pickerColor = /^#[0-9a-f]{6}$/i.test((value || "").trim())
     ? value.trim()
     : "#008080";
 
   return (
-    <label className="block space-y-1">
-      <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-        {label}
-      </span>
+    <div className="space-y-1">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+          {label}
+        </span>
+        {allowTransparent && (
+          <button
+            type="button"
+            onClick={() => onChange(isTransparent ? "#FFFFFF" : "transparent")}
+            className={`px-1.5 py-0.5 text-[10px] font-semibold rounded border transition-colors cursor-pointer ${
+              isTransparent
+                ? "bg-blue-50 border-blue-300 text-blue-700 dark:bg-blue-900/40 dark:border-blue-700 dark:text-blue-300"
+                : "border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-white"
+            }`}
+          >
+            {isTransparent ? "Transparent ✓" : "Set Transparent"}
+          </button>
+        )}
+      </div>
+
       <div className="flex items-center gap-1.5">
-        <input
-          type="color"
-          value={pickerColor}
-          onChange={(e) => onChange(e.target.value)}
-          className="h-8 w-8 rounded border border-slate-200 dark:border-slate-700 bg-transparent cursor-pointer shrink-0 p-0.5"
-        />
+        {isTransparent ? (
+          <div
+            title="Transparent"
+            className="h-8 w-8 rounded border border-slate-300 dark:border-slate-600 shrink-0"
+            style={{
+              backgroundImage:
+                "linear-gradient(45deg, #cbd5e1 25%, transparent 25%), linear-gradient(-45deg, #cbd5e1 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #cbd5e1 75%), linear-gradient(-45deg, transparent 75%, #cbd5e1 75%)",
+              backgroundSize: "8px 8px",
+              backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0px",
+            }}
+          />
+        ) : (
+          <input
+            type="color"
+            value={pickerColor}
+            onChange={(e) => onChange(e.target.value)}
+            className="h-8 w-8 rounded border border-slate-200 dark:border-slate-700 bg-transparent cursor-pointer shrink-0 p-0.5"
+          />
+        )}
         <input
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          placeholder={allowTransparent ? "transparent or #FFFFFF" : "#008080"}
           className="w-full px-2.5 py-1.5 text-xs font-mono rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/30"
         />
       </div>
-    </label>
+    </div>
   );
 }
 
 export default function InspectorPanel({
   breakpoint,
+  sectionsCount,
   selectedSection,
   selectedElement,
   pageBgColor,
@@ -137,6 +219,7 @@ export default function InspectorPanel({
   onDeleteElement,
 }: {
   breakpoint: Breakpoint;
+  sectionsCount: number;
   selectedSection: FreeformSection | null;
   selectedElement: CanvasElement | null;
   pageBgColor: string;
@@ -252,10 +335,11 @@ export default function InspectorPanel({
               <button
                 type="button"
                 onClick={() =>
-                  onUpdateElement(selectedSection.id, selectedElement.id, (el) => ({
-                    ...el,
-                    locked: !el.locked,
-                  }))
+                  onUpdateElement(
+                    selectedSection.id,
+                    selectedElement.id,
+                    (el) => ({ ...el, locked: !el.locked })
+                  )
                 }
                 title={selectedElement.locked ? "Unlock" : "Lock"}
                 className="p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 cursor-pointer"
@@ -307,7 +391,7 @@ export default function InspectorPanel({
         <div className="space-y-3 pb-4 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-              Position & Size
+              Position &amp; Size
             </span>
             <div className="flex items-center gap-0.5">
               <button
@@ -343,7 +427,7 @@ export default function InspectorPanel({
                     "front"
                   )
                 }
-                title="Bring to front"
+                title="Bring to top"
                 className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 cursor-pointer"
               >
                 <ArrowUpToLine size={14} />
@@ -351,9 +435,13 @@ export default function InspectorPanel({
               <button
                 type="button"
                 onClick={() =>
-                  onMoveElementLayer(selectedSection.id, selectedElement.id, "back")
+                  onMoveElementLayer(
+                    selectedSection.id,
+                    selectedElement.id,
+                    "back"
+                  )
                 }
-                title="Send to back"
+                title="Send to bottom"
                 className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 cursor-pointer"
               >
                 <ArrowDownToLine size={14} />
@@ -375,8 +463,8 @@ export default function InspectorPanel({
             <NumberInput
               label="Width (px)"
               value={frame.w}
-              min={40}
-              onChange={(w) => patchFrame({ w: Math.max(40, w) })}
+              min={32}
+              onChange={(w) => patchFrame({ w: Math.max(32, w) })}
             />
             <NumberInput
               label="Height (px)"
@@ -397,23 +485,54 @@ export default function InspectorPanel({
               min={10}
               max={100}
               onChange={(opacity) =>
-                onUpdateElement(selectedSection.id, selectedElement.id, (el) => ({
-                  ...el,
-                  opacity: Math.max(10, Math.min(100, opacity)),
-                }))
+                onUpdateElement(
+                  selectedSection.id,
+                  selectedElement.id,
+                  (el) => ({
+                    ...el,
+                    opacity: Math.max(10, Math.min(100, opacity)),
+                  })
+                )
               }
             />
           </div>
         </div>
 
-        {/* TYPE-SPECIFIC CONTROLS */}
-
-        {/* TEXT */}
+        {/* TEXT + TYPOGRAPHY SHAPES */}
         {selectedElement.type === "text" && (
           <div className="space-y-3">
             <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 block">
-              Text & Typography
+              Text &amp; Typography Shape
             </span>
+
+            <label className="block space-y-1">
+              <span className="text-[11px] font-medium text-slate-500">
+                Typography Style / Shape
+              </span>
+              <select
+                value={selectedElement.props.textStyle || "plain"}
+                onChange={(e) =>
+                  onUpdateElement(selectedSection.id, selectedElement.id, (el) =>
+                    el.type === "text"
+                      ? {
+                          ...el,
+                          props: {
+                            ...el.props,
+                            textStyle: e.target.value as TextTypographyShape,
+                          },
+                        }
+                      : el
+                  )
+                }
+                className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+              >
+                {TEXT_SHAPE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
 
             <textarea
               rows={4}
@@ -464,7 +583,7 @@ export default function InspectorPanel({
             <div className="grid grid-cols-2 gap-2">
               <label className="block space-y-1">
                 <span className="text-[11px] font-medium text-slate-500">
-                  Tag
+                  HTML Tag
                 </span>
                 <select
                   value={selectedElement.props.tag}
@@ -541,11 +660,11 @@ export default function InspectorPanel({
                   }
                   className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
                 >
-                  <option value="400">Regular (400)</option>
-                  <option value="500">Medium (500)</option>
-                  <option value="600">Semibold (600)</option>
-                  <option value="700">Bold (700)</option>
-                  <option value="800">Extrabold (800)</option>
+                  <option value="400">Regular</option>
+                  <option value="500">Medium</option>
+                  <option value="600">Semibold</option>
+                  <option value="700">Bold</option>
+                  <option value="800">Extrabold</option>
                 </select>
               </label>
 
@@ -576,6 +695,62 @@ export default function InspectorPanel({
                   <option value="left">Left</option>
                   <option value="center">Center</option>
                   <option value="right">Right</option>
+                </select>
+              </label>
+
+              <label className="block space-y-1">
+                <span className="text-[11px] font-medium text-slate-500">
+                  Transform
+                </span>
+                <select
+                  value={selectedElement.props.textTransform || "none"}
+                  onChange={(e) =>
+                    onUpdateElement(selectedSection.id, selectedElement.id, (el) =>
+                      el.type === "text"
+                        ? {
+                            ...el,
+                            props: {
+                              ...el.props,
+                              textTransform: e.target.value as
+                                | "none"
+                                | "uppercase"
+                                | "capitalize",
+                            },
+                          }
+                        : el
+                    )
+                  }
+                  className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                >
+                  <option value="none">Normal</option>
+                  <option value="uppercase">UPPERCASE</option>
+                  <option value="capitalize">Capitalize</option>
+                </select>
+              </label>
+
+              <label className="block space-y-1">
+                <span className="text-[11px] font-medium text-slate-500">
+                  Style
+                </span>
+                <select
+                  value={selectedElement.props.fontStyle || "normal"}
+                  onChange={(e) =>
+                    onUpdateElement(selectedSection.id, selectedElement.id, (el) =>
+                      el.type === "text"
+                        ? {
+                            ...el,
+                            props: {
+                              ...el.props,
+                              fontStyle: e.target.value as "normal" | "italic",
+                            },
+                          }
+                        : el
+                    )
+                  }
+                  className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                >
+                  <option value="normal">Normal</option>
+                  <option value="italic">Italic</option>
                 </select>
               </label>
 
@@ -620,14 +795,39 @@ export default function InspectorPanel({
                 )
               }
             />
+
+            <ColorInput
+              label="Accent Color (Bar / Gradient / Tag)"
+              value={selectedElement.props.accentColor || "#008080"}
+              onChange={(accentColor) =>
+                onUpdateElement(selectedSection.id, selectedElement.id, (el) =>
+                  el.type === "text"
+                    ? { ...el, props: { ...el.props, accentColor } }
+                    : el
+                )
+              }
+            />
+
+            <ColorInput
+              label="Background Fill"
+              value={selectedElement.props.backgroundColor || "transparent"}
+              allowTransparent
+              onChange={(backgroundColor) =>
+                onUpdateElement(selectedSection.id, selectedElement.id, (el) =>
+                  el.type === "text"
+                    ? { ...el, props: { ...el.props, backgroundColor } }
+                    : el
+                )
+              }
+            />
           </div>
         )}
 
-        {/* IMAGE */}
+        {/* IMAGE (Shapes + 5 Fit Modes + Focal Point) */}
         {selectedElement.type === "image" && (
           <div className="space-y-3">
             <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 block">
-              Image Source & Style
+              Image Source, Shape &amp; Fit
             </span>
 
             <input
@@ -691,7 +891,36 @@ export default function InspectorPanel({
             <div className="grid grid-cols-2 gap-2">
               <label className="block space-y-1">
                 <span className="text-[11px] font-medium text-slate-500">
-                  Fit
+                  Image Shape
+                </span>
+                <select
+                  value={selectedElement.props.shape || "rounded"}
+                  onChange={(e) =>
+                    onUpdateElement(selectedSection.id, selectedElement.id, (el) =>
+                      el.type === "image"
+                        ? {
+                            ...el,
+                            props: {
+                              ...el.props,
+                              shape: e.target.value as ImageShapePreset,
+                            },
+                          }
+                        : el
+                    )
+                  }
+                  className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                >
+                  {IMAGE_SHAPE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block space-y-1">
+                <span className="text-[11px] font-medium text-slate-500">
+                  Image Fit
                 </span>
                 <select
                   value={selectedElement.props.objectFit}
@@ -702,7 +931,7 @@ export default function InspectorPanel({
                             ...el,
                             props: {
                               ...el.props,
-                              objectFit: e.target.value as "cover" | "contain",
+                              objectFit: e.target.value as ImageFitMode,
                             },
                           }
                         : el
@@ -710,8 +939,41 @@ export default function InspectorPanel({
                   }
                   className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
                 >
-                  <option value="cover">Cover (Fill)</option>
-                  <option value="contain">Contain</option>
+                  {IMAGE_FIT_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block space-y-1">
+                <span className="text-[11px] font-medium text-slate-500">
+                  Focal Point
+                </span>
+                <select
+                  value={selectedElement.props.objectPosition || "center"}
+                  onChange={(e) =>
+                    onUpdateElement(selectedSection.id, selectedElement.id, (el) =>
+                      el.type === "image"
+                        ? {
+                            ...el,
+                            props: {
+                              ...el.props,
+                              objectPosition: e.target
+                                .value as ImagePositionPreset,
+                            },
+                          }
+                        : el
+                    )
+                  }
+                  className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                >
+                  {IMAGE_POSITION_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
                 </select>
               </label>
 
@@ -772,6 +1034,19 @@ export default function InspectorPanel({
                 }
               />
             </div>
+
+            <ColorInput
+              label="Frame Backdrop"
+              value={selectedElement.props.backgroundColor || "transparent"}
+              allowTransparent
+              onChange={(backgroundColor) =>
+                onUpdateElement(selectedSection.id, selectedElement.id, (el) =>
+                  el.type === "image"
+                    ? { ...el, props: { ...el.props, backgroundColor } }
+                    : el
+                )
+              }
+            />
 
             <ColorInput
               label="Border Color"
@@ -841,6 +1116,7 @@ export default function InspectorPanel({
             <ColorInput
               label="Card Background"
               value={selectedElement.props.backgroundColor}
+              allowTransparent
               onChange={(backgroundColor) =>
                 onUpdateElement(selectedSection.id, selectedElement.id, (el) =>
                   el.type === "stat"
@@ -869,7 +1145,7 @@ export default function InspectorPanel({
         {selectedElement.type === "callout" && (
           <div className="space-y-3">
             <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 block">
-              Callout / Award Box
+              Callout / Pillar Box
             </span>
             <label className="block space-y-1">
               <span className="text-[11px] font-medium text-slate-500">
@@ -884,7 +1160,7 @@ export default function InspectorPanel({
                           ...el,
                           props: {
                             ...el.props,
-                            icon: e.target.value as CalloutIconName,
+                            icon: e.target.value as StudioIconName,
                           },
                         }
                       : el
@@ -892,7 +1168,7 @@ export default function InspectorPanel({
                 }
                 className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
               >
-                {CALLOUT_ICONS.map((ic) => (
+                {ALL_ICONS.map((ic) => (
                   <option key={ic} value={ic}>
                     {ic}
                   </option>
@@ -947,6 +1223,7 @@ export default function InspectorPanel({
             <ColorInput
               label="Box Background"
               value={selectedElement.props.backgroundColor}
+              allowTransparent
               onChange={(backgroundColor) =>
                 onUpdateElement(selectedSection.id, selectedElement.id, (el) =>
                   el.type === "callout"
@@ -969,11 +1246,11 @@ export default function InspectorPanel({
           </div>
         )}
 
-        {/* BUTTON */}
+        {/* BUTTON WITH ANIMATION CONTROLS */}
         {selectedElement.type === "button" && (
           <div className="space-y-3">
             <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 block">
-              Button / CTA
+              Button &amp; Animation
             </span>
             <label className="block space-y-1">
               <span className="text-[11px] font-medium text-slate-500">
@@ -1036,6 +1313,36 @@ export default function InspectorPanel({
                   <option value="outline">Outline</option>
                 </select>
               </label>
+
+              <label className="block space-y-1">
+                <span className="text-[11px] font-medium text-slate-500">
+                  Hover Animation
+                </span>
+                <select
+                  value={selectedElement.props.hoverEffect || "lift"}
+                  onChange={(e) =>
+                    onUpdateElement(selectedSection.id, selectedElement.id, (el) =>
+                      el.type === "button"
+                        ? {
+                            ...el,
+                            props: {
+                              ...el.props,
+                              hoverEffect: e.target.value as ButtonHoverEffect,
+                            },
+                          }
+                        : el
+                    )
+                  }
+                  className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                >
+                  {BUTTON_HOVER_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
               <NumberInput
                 label="Radius (px)"
                 value={selectedElement.props.borderRadius}
@@ -1049,10 +1356,83 @@ export default function InspectorPanel({
                   )
                 }
               />
+
+              <label className="block space-y-1">
+                <span className="text-[11px] font-medium text-slate-500">
+                  Shadow
+                </span>
+                <select
+                  value={selectedElement.props.shadow || "none"}
+                  onChange={(e) =>
+                    onUpdateElement(selectedSection.id, selectedElement.id, (el) =>
+                      el.type === "button"
+                        ? {
+                            ...el,
+                            props: {
+                              ...el.props,
+                              shadow: e.target.value as ShadowPreset,
+                            },
+                          }
+                        : el
+                    )
+                  }
+                  className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                >
+                  {SHADOW_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
+
+            <div className="space-y-2">
+              <label className="flex items-center justify-between text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
+                <span>Animated arrow icon</span>
+                <input
+                  type="checkbox"
+                  checked={Boolean(selectedElement.props.showArrow)}
+                  onChange={(e) =>
+                    onUpdateElement(selectedSection.id, selectedElement.id, (el) =>
+                      el.type === "button"
+                        ? {
+                            ...el,
+                            props: { ...el.props, showArrow: e.target.checked },
+                          }
+                        : el
+                    )
+                  }
+                  className="h-4 w-4 rounded text-blue-600"
+                />
+              </label>
+              <label className="flex items-center justify-between text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
+                <span>Open link in new tab</span>
+                <input
+                  type="checkbox"
+                  checked={Boolean(selectedElement.props.openInNewTab)}
+                  onChange={(e) =>
+                    onUpdateElement(selectedSection.id, selectedElement.id, (el) =>
+                      el.type === "button"
+                        ? {
+                            ...el,
+                            props: {
+                              ...el.props,
+                              openInNewTab: e.target.checked,
+                            },
+                          }
+                        : el
+                    )
+                  }
+                  className="h-4 w-4 rounded text-blue-600"
+                />
+              </label>
+            </div>
+
             <ColorInput
               label="Background / Border"
               value={selectedElement.props.backgroundColor}
+              allowTransparent
               onChange={(backgroundColor) =>
                 onUpdateElement(selectedSection.id, selectedElement.id, (el) =>
                   el.type === "button"
@@ -1061,7 +1441,10 @@ export default function InspectorPanel({
                         props: {
                           ...el.props,
                           backgroundColor,
-                          borderColor: backgroundColor,
+                          borderColor:
+                            backgroundColor === "transparent"
+                              ? el.props.borderColor
+                              : backgroundColor,
                         },
                       }
                     : el
@@ -1082,11 +1465,11 @@ export default function InspectorPanel({
           </div>
         )}
 
-        {/* SHAPE / DIVIDER */}
+        {/* BOX / SHAPE / DIVIDER WITH TRANSPARENT SUPPORT */}
         {selectedElement.type === "shape" && (
           <div className="space-y-3">
             <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 block">
-              Shape / Container
+              Box / Shape
             </span>
             <label className="block space-y-1">
               <span className="text-[11px] font-medium text-slate-500">
@@ -1119,9 +1502,11 @@ export default function InspectorPanel({
                 <option value="divider">Divider Line</option>
               </select>
             </label>
+
             <ColorInput
               label="Fill Color"
               value={selectedElement.props.backgroundColor}
+              allowTransparent
               onChange={(backgroundColor) =>
                 onUpdateElement(selectedSection.id, selectedElement.id, (el) =>
                   el.type === "shape"
@@ -1130,9 +1515,11 @@ export default function InspectorPanel({
                 )
               }
             />
+
             <ColorInput
               label="Border Color"
               value={selectedElement.props.borderColor}
+              allowTransparent
               onChange={(borderColor) =>
                 onUpdateElement(selectedSection.id, selectedElement.id, (el) =>
                   el.type === "shape"
@@ -1141,6 +1528,7 @@ export default function InspectorPanel({
                 )
               }
             />
+
             <div className="grid grid-cols-2 gap-2">
               <NumberInput
                 label="Border / Thick"
@@ -1169,6 +1557,189 @@ export default function InspectorPanel({
                 }
               />
             </div>
+
+            <label className="block space-y-1">
+              <span className="text-[11px] font-medium text-slate-500">
+                Shadow
+              </span>
+              <select
+                value={selectedElement.props.shadow}
+                onChange={(e) =>
+                  onUpdateElement(selectedSection.id, selectedElement.id, (el) =>
+                    el.type === "shape"
+                      ? {
+                          ...el,
+                          props: {
+                            ...el.props,
+                            shadow: e.target.value as ShadowPreset,
+                          },
+                        }
+                      : el
+                  )
+                }
+                className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+              >
+                {SHADOW_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="flex items-center justify-between text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
+              <span>Frosted glass blur</span>
+              <input
+                type="checkbox"
+                checked={Boolean(selectedElement.props.backdropBlur)}
+                onChange={(e) =>
+                  onUpdateElement(selectedSection.id, selectedElement.id, (el) =>
+                    el.type === "shape"
+                      ? {
+                          ...el,
+                          props: { ...el.props, backdropBlur: e.target.checked },
+                        }
+                      : el
+                  )
+                }
+                className="h-4 w-4 rounded text-blue-600"
+              />
+            </label>
+          </div>
+        )}
+
+        {/* STANDALONE ICON INSPECTOR */}
+        {selectedElement.type === "icon" && (
+          <div className="space-y-3">
+            <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 block">
+              Icon Library &amp; Style
+            </span>
+
+            <div className="grid grid-cols-6 gap-1.5 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950/50">
+              {ALL_ICONS.map((iconName) => {
+                const IconComp = STUDIO_ICON_MAP[iconName];
+                const active = selectedElement.props.icon === iconName;
+                return (
+                  <button
+                    key={iconName}
+                    type="button"
+                    title={iconName}
+                    onClick={() =>
+                      onUpdateElement(
+                        selectedSection.id,
+                        selectedElement.id,
+                        (el) =>
+                          el.type === "icon"
+                            ? { ...el, props: { ...el.props, icon: iconName } }
+                            : el
+                      )
+                    }
+                    className={`p-2 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${
+                      active
+                        ? "bg-blue-600 text-white shadow-xs"
+                        : "text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800"
+                    }`}
+                  >
+                    <IconComp size={15} />
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <NumberInput
+                label="Icon Size (px)"
+                value={selectedElement.props.iconSize}
+                min={14}
+                max={120}
+                onChange={(iconSize) =>
+                  onUpdateElement(selectedSection.id, selectedElement.id, (el) =>
+                    el.type === "icon"
+                      ? { ...el, props: { ...el.props, iconSize } }
+                      : el
+                  )
+                }
+              />
+
+              <label className="block space-y-1">
+                <span className="text-[11px] font-medium text-slate-500">
+                  Container
+                </span>
+                <select
+                  value={selectedElement.props.containerShape}
+                  onChange={(e) =>
+                    onUpdateElement(selectedSection.id, selectedElement.id, (el) =>
+                      el.type === "icon"
+                        ? {
+                            ...el,
+                            props: {
+                              ...el.props,
+                              containerShape: e.target.value as
+                                | "none"
+                                | "circle"
+                                | "rounded"
+                                | "square",
+                            },
+                          }
+                        : el
+                    )
+                  }
+                  className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                >
+                  <option value="none">None (Icon Only)</option>
+                  <option value="circle">Circle Badge</option>
+                  <option value="rounded">Rounded Badge</option>
+                  <option value="square">Square Badge</option>
+                </select>
+              </label>
+            </div>
+
+            <ColorInput
+              label="Icon Color"
+              value={selectedElement.props.color}
+              onChange={(color) =>
+                onUpdateElement(selectedSection.id, selectedElement.id, (el) =>
+                  el.type === "icon"
+                    ? { ...el, props: { ...el.props, color } }
+                    : el
+                )
+              }
+            />
+
+            {selectedElement.props.containerShape !== "none" && (
+              <>
+                <ColorInput
+                  label="Badge Fill"
+                  value={selectedElement.props.backgroundColor}
+                  allowTransparent
+                  onChange={(backgroundColor) =>
+                    onUpdateElement(
+                      selectedSection.id,
+                      selectedElement.id,
+                      (el) =>
+                        el.type === "icon"
+                          ? { ...el, props: { ...el.props, backgroundColor } }
+                          : el
+                    )
+                  }
+                />
+                <ColorInput
+                  label="Badge Border"
+                  value={selectedElement.props.borderColor}
+                  allowTransparent
+                  onChange={(borderColor) =>
+                    onUpdateElement(
+                      selectedSection.id,
+                      selectedElement.id,
+                      (el) =>
+                        el.type === "icon"
+                          ? { ...el, props: { ...el.props, borderColor } }
+                          : el
+                    )
+                  }
+                />
+              </>
+            )}
           </div>
         )}
 
@@ -1215,7 +1786,7 @@ export default function InspectorPanel({
     );
   }
 
-  // SECTION INSPECTOR (when a section is selected or nothing selected)
+  // SECTION INSPECTOR
   if (selectedSection) {
     return (
       <aside className="w-80 shrink-0 border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-y-auto p-4 space-y-5">
@@ -1235,9 +1806,14 @@ export default function InspectorPanel({
               </button>
               <button
                 type="button"
+                disabled={sectionsCount <= 1}
                 onClick={() => onDeleteSection(selectedSection.id)}
-                title="Delete section"
-                className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 cursor-pointer"
+                title={
+                  sectionsCount <= 1
+                    ? "At least one section is required"
+                    : "Delete section"
+                }
+                className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 disabled:opacity-30 cursor-pointer"
               >
                 <Trash2 size={14} />
               </button>
@@ -1301,6 +1877,7 @@ export default function InspectorPanel({
             <ColorInput
               label="Section Background Color"
               value={selectedSection.backgroundColor}
+              allowTransparent
               onChange={(backgroundColor) =>
                 onUpdateSection(selectedSection.id, { backgroundColor })
               }
@@ -1371,6 +1948,19 @@ export default function InspectorPanel({
             value={pageBgColor}
             onChange={onUpdatePageBgColor}
           />
+        </div>
+
+        {/* Prominent Delete Section Button */}
+        <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+          <button
+            type="button"
+            disabled={sectionsCount <= 1}
+            onClick={() => onDeleteSection(selectedSection.id)}
+            className="w-full py-2 px-3 rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50/70 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-700 dark:text-red-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          >
+            <Trash2 size={14} />
+            Delete Section &quot;{selectedSection.name}&quot;
+          </button>
         </div>
       </aside>
     );

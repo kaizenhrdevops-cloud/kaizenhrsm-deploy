@@ -4,17 +4,33 @@
 import React from "react";
 import Link from "next/link";
 import {
+  ArrowRight,
   Award,
+  BarChart3,
+  Briefcase,
   Building2,
+  Calculator,
+  Calendar,
   CheckCircle2,
+  Clock,
+  Compass,
+  Cpu,
+  Globe,
   Heart,
   Image as ImageIcon,
+  Layers,
   Lightbulb,
+  Lock,
+  Rocket,
   ShieldCheck,
+  Smartphone,
   Sparkles,
   Star,
+  Target,
+  TrendingUp,
   Users,
   Youtube,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -22,22 +38,39 @@ import {
   resolveDynamicTokens,
   sanitizeLinkHref,
   type Breakpoint,
-  type CalloutIconName,
+  type ButtonHoverEffect,
   type CanvasElement,
   type DynamicTokenContext,
+  type ImageShapePreset,
   type ShadowPreset,
+  type StudioIconName,
 } from "@/data/about-us-defaults";
 
-export const CALLOUT_ICON_MAP: Record<CalloutIconName, LucideIcon> = {
+export const STUDIO_ICON_MAP: Record<StudioIconName, LucideIcon> = {
   Award,
-  Sparkles,
-  ShieldCheck,
-  Star,
-  Heart,
-  Lightbulb,
-  Building2,
   Users,
+  Building2,
+  ShieldCheck,
+  Sparkles,
+  Layers,
+  Briefcase,
+  BarChart3,
   CheckCircle2,
+  TrendingUp,
+  Clock,
+  Calendar,
+  Calculator,
+  Smartphone,
+  Globe,
+  Zap,
+  Target,
+  Compass,
+  Heart,
+  Star,
+  Lightbulb,
+  Cpu,
+  Lock,
+  Rocket,
 };
 
 const SHADOW_CLASS: Record<ShadowPreset, string> = {
@@ -47,6 +80,42 @@ const SHADOW_CLASS: Record<ShadowPreset, string> = {
   lg: "shadow-lg",
   "2xl": "shadow-2xl",
 };
+
+const BUTTON_HOVER_CLASS: Record<ButtonHoverEffect, string> = {
+  lift: "hover:-translate-y-0.5 hover:shadow-lg hover:brightness-105 active:translate-y-0 active:scale-[0.98] active:shadow-sm",
+  scale: "hover:scale-[1.03] hover:shadow-md active:scale-[0.97]",
+  glow: "hover:brightness-110 hover:shadow-[0_0_24px_rgba(0,128,128,0.45)] active:scale-[0.98]",
+  none: "",
+};
+
+function getImageShapeStyle(
+  shape: ImageShapePreset | undefined,
+  borderRadius: number
+): React.CSSProperties {
+  switch (shape) {
+    case "circle":
+      return { borderRadius: "9999px" };
+    case "arch":
+      return { borderRadius: "999px 999px 16px 16px" };
+    case "blob":
+      return { borderRadius: "42% 58% 62% 38% / 44% 46% 54% 56%" };
+    case "hexagon":
+      return {
+        clipPath:
+          "polygon(50% 0%, 96% 25%, 96% 75%, 50% 100%, 4% 75%, 4% 25%)",
+      };
+    case "chamfer":
+      return {
+        clipPath:
+          "polygon(20px 0%, 100% 0%, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0% 100%, 0% 20px)",
+      };
+    case "rounded":
+      return { borderRadius: `${Math.max(borderRadius, 16)}px` };
+    case "rectangle":
+    default:
+      return { borderRadius: `${borderRadius}px` };
+  }
+}
 
 /**
  * Pure WYSIWYG element renderer shared 1:1 between the Admin Canvas Editor
@@ -65,12 +134,10 @@ export default function CanvasElementContent({
   element: CanvasElement;
   breakpoint: Breakpoint;
   tokenCtx: DynamicTokenContext;
-  /** False inside the canvas editor so links/iframes don't hijack dragging. */
   interactive?: boolean;
   isEditingInline?: boolean;
   onInlineTextChange?: (nextText: string) => void;
   onInlineTextBlur?: () => void;
-  /** Prevents duplicate <h1> elements when mobile/desktop trees both mount. */
   suppressH1?: boolean;
 }) {
   const opacityStyle =
@@ -78,16 +145,23 @@ export default function CanvasElementContent({
       ? element.opacity / 100
       : 1;
 
+  // =========================================================================
+  // TEXT & TYPOGRAPHY SHAPES
+  // =========================================================================
   if (element.type === "text") {
     const p = element.props;
     const fontSize =
       breakpoint === "mobile" && typeof p.mobileFontSize === "number"
         ? p.mobileFontSize
         : p.fontSize;
+    const textShape = p.textStyle || "plain";
+    const accent = p.accentColor || "#008080";
 
-    const textStyle: React.CSSProperties = {
+    const baseStyle: React.CSSProperties = {
       fontSize: `${fontSize}px`,
       fontWeight: Number(p.fontWeight),
+      fontStyle: p.fontStyle || "normal",
+      textTransform: p.textTransform || "none",
       lineHeight: p.lineHeight,
       letterSpacing:
         typeof p.letterSpacing === "number"
@@ -95,9 +169,6 @@ export default function CanvasElementContent({
           : undefined,
       textAlign: p.textAlign,
       color: p.color,
-      backgroundColor: p.backgroundColor || "transparent",
-      borderRadius: p.borderRadius ? `${p.borderRadius}px` : undefined,
-      padding: p.padding ? `${p.padding}px` : undefined,
       opacity: opacityStyle,
       whiteSpace: "pre-wrap",
       wordBreak: "break-word",
@@ -117,8 +188,12 @@ export default function CanvasElementContent({
           }}
           onPointerDown={(e) => e.stopPropagation()}
           autoFocus
-          style={textStyle}
-          className="w-full h-full resize-none bg-transparent outline-none ring-2 ring-blue-500/60 rounded"
+          style={{
+            ...baseStyle,
+            backgroundColor: p.backgroundColor || "transparent",
+            padding: p.padding ? `${p.padding}px` : "4px",
+          }}
+          className="w-full h-full resize-none outline-none ring-2 ring-blue-500/70 rounded"
         />
       );
     }
@@ -126,20 +201,150 @@ export default function CanvasElementContent({
     const renderedText = resolveDynamicTokens(p.content, tokenCtx);
     const Tag = p.tag === "h1" && suppressH1 ? "div" : p.tag;
 
+    if (textShape === "pill-badge" || textShape === "outline-tag") {
+      const isOutline = textShape === "outline-tag";
+      return (
+        <div
+          className="w-full h-full flex items-center"
+          style={{
+            justifyContent:
+              p.textAlign === "center"
+                ? "center"
+                : p.textAlign === "right"
+                  ? "flex-end"
+                  : "flex-start",
+            opacity: opacityStyle,
+          }}
+        >
+          <Tag
+            style={{
+              ...baseStyle,
+              opacity: 1,
+              backgroundColor: isOutline
+                ? "transparent"
+                : p.backgroundColor || "rgba(0,128,128,0.1)",
+              borderColor: p.borderColor || accent,
+              borderWidth: "1px",
+              borderStyle: "solid",
+              borderRadius: `${p.borderRadius ?? 999}px`,
+              padding: `${p.padding ?? 6}px ${Math.max(12, (p.padding ?? 6) * 2)}px`,
+            }}
+            className="inline-flex items-center justify-center max-w-full truncate"
+          >
+            {renderedText}
+          </Tag>
+        </div>
+      );
+    }
+
+    if (textShape === "eyebrow") {
+      return (
+        <div
+          className="w-full h-full flex items-center gap-2.5"
+          style={{
+            justifyContent:
+              p.textAlign === "center"
+                ? "center"
+                : p.textAlign === "right"
+                  ? "flex-end"
+                  : "flex-start",
+            opacity: opacityStyle,
+          }}
+        >
+          <span
+            className="h-0.5 w-6 rounded-full shrink-0"
+            style={{ backgroundColor: accent }}
+          />
+          <Tag style={{ ...baseStyle, opacity: 1 }}>{renderedText}</Tag>
+        </div>
+      );
+    }
+
+    if (textShape === "gradient") {
+      return (
+        <Tag
+          style={{
+            ...baseStyle,
+            backgroundImage: `linear-gradient(135deg, ${p.color || "#005c5c"} 0%, ${accent} 55%, #1853E9 100%)`,
+            WebkitBackgroundClip: "text",
+            backgroundClip: "text",
+            color: "transparent",
+            padding: p.padding ? `${p.padding}px` : undefined,
+          }}
+          className="w-full h-full overflow-hidden"
+        >
+          {renderedText}
+        </Tag>
+      );
+    }
+
+    if (textShape === "left-accent") {
+      return (
+        <Tag
+          style={{
+            ...baseStyle,
+            borderLeft: `3px solid ${accent}`,
+            backgroundColor: p.backgroundColor || "transparent",
+            borderRadius: p.borderRadius ? `${p.borderRadius}px` : undefined,
+            paddingLeft: `${Math.max(12, p.padding ?? 14)}px`,
+            paddingTop: p.padding ? `${Math.round(p.padding / 2)}px` : "4px",
+            paddingBottom: p.padding ? `${Math.round(p.padding / 2)}px` : "4px",
+            paddingRight: p.padding ? `${p.padding}px` : "4px",
+          }}
+          className="w-full h-full overflow-hidden"
+        >
+          {renderedText}
+        </Tag>
+      );
+    }
+
+    if (textShape === "highlight") {
+      return (
+        <Tag
+          style={{
+            ...baseStyle,
+            backgroundColor: p.backgroundColor || "rgba(0,128,128,0.08)",
+            borderRadius: `${p.borderRadius ?? 12}px`,
+            padding: `${p.padding ?? 14}px`,
+          }}
+          className="w-full h-full overflow-hidden"
+        >
+          {renderedText}
+        </Tag>
+      );
+    }
+
     return (
-      <Tag style={textStyle} className="w-full h-full overflow-hidden">
+      <Tag
+        style={{
+          ...baseStyle,
+          backgroundColor:
+            p.backgroundColor && p.backgroundColor !== "transparent"
+              ? p.backgroundColor
+              : "transparent",
+          borderRadius: p.borderRadius ? `${p.borderRadius}px` : undefined,
+          padding: p.padding ? `${p.padding}px` : undefined,
+        }}
+        className="w-full h-full overflow-hidden"
+      >
         {renderedText}
       </Tag>
     );
   }
 
+  // =========================================================================
+  // IMAGE (Multiple Shapes + 5 Fit Modes + Focal Point)
+  // =========================================================================
   if (element.type === "image") {
     const p = element.props;
+    const shapeStyle = getImageShapeStyle(p.shape, p.borderRadius);
+
     return (
       <div
         className={`w-full h-full overflow-hidden ${SHADOW_CLASS[p.shadow] || ""}`}
         style={{
-          borderRadius: `${p.borderRadius}px`,
+          ...shapeStyle,
+          backgroundColor: p.backgroundColor || "transparent",
           borderWidth: p.borderWidth ? `${p.borderWidth}px` : undefined,
           borderStyle: p.borderWidth ? "solid" : undefined,
           borderColor: p.borderWidth ? p.borderColor : undefined,
@@ -153,7 +358,10 @@ export default function CanvasElementContent({
             alt={p.alt || element.name}
             draggable={false}
             className="w-full h-full select-none"
-            style={{ objectFit: p.objectFit }}
+            style={{
+              objectFit: p.objectFit,
+              objectPosition: p.objectPosition || "center",
+            }}
           />
         ) : (
           <div className="w-full h-full bg-slate-100 flex flex-col items-center justify-center text-slate-400 gap-2 p-4">
@@ -167,6 +375,9 @@ export default function CanvasElementContent({
     );
   }
 
+  // =========================================================================
+  // STAT CARD
+  // =========================================================================
   if (element.type === "stat") {
     const p = element.props;
     return (
@@ -181,7 +392,7 @@ export default function CanvasElementContent({
         }}
       >
         <p
-          className="text-3xl md:text-4xl font-bold leading-tight truncate"
+          className="text-3xl md:text-4xl font-extrabold tracking-tight leading-tight truncate"
           style={{ color: p.valueColor }}
         >
           {resolveDynamicTokens(p.value, tokenCtx)}
@@ -196,12 +407,15 @@ export default function CanvasElementContent({
     );
   }
 
+  // =========================================================================
+  // CALLOUT / AWARD / PILLAR CARD
+  // =========================================================================
   if (element.type === "callout") {
     const p = element.props;
-    const Icon = CALLOUT_ICON_MAP[p.icon] || Award;
+    const Icon = STUDIO_ICON_MAP[p.icon] || Award;
     return (
       <div
-        className="w-full h-full flex items-start gap-4 p-6 border overflow-hidden"
+        className="w-full h-full flex items-start gap-4 p-5 sm:p-6 border overflow-hidden"
         style={{
           backgroundColor: p.backgroundColor,
           borderColor: p.borderColor,
@@ -210,10 +424,10 @@ export default function CanvasElementContent({
         }}
       >
         <div
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-white"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white shadow-xs"
           style={{ backgroundColor: p.accentColor }}
         >
-          <Icon className="h-6 w-6" />
+          <Icon className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1 space-y-1">
           {p.title?.trim() && (
@@ -225,7 +439,7 @@ export default function CanvasElementContent({
             </p>
           )}
           <p
-            className="text-sm sm:text-base font-medium leading-relaxed"
+            className="text-sm font-medium leading-relaxed opacity-90"
             style={{ color: p.textColor }}
           >
             {resolveDynamicTokens(p.text, tokenCtx)}
@@ -235,9 +449,15 @@ export default function CanvasElementContent({
     );
   }
 
+  // =========================================================================
+  // BUTTON / CTA WITH SUBTLE HOVER & CLICK ANIMATIONS
+  // =========================================================================
   if (element.type === "button") {
     const p = element.props;
     const isSolid = p.variant === "solid";
+    const hoverClass = BUTTON_HOVER_CLASS[p.hoverEffect ?? "lift"];
+    const shadowClass = SHADOW_CLASS[p.shadow ?? "none"];
+
     const style: React.CSSProperties = {
       backgroundColor: isSolid ? p.backgroundColor : "transparent",
       color: p.textColor,
@@ -249,42 +469,56 @@ export default function CanvasElementContent({
       opacity: opacityStyle,
     };
 
-    const className =
-      "w-full h-full inline-flex items-center justify-center font-semibold px-5 transition-opacity hover:opacity-90 select-none";
+    const className = `group/btn w-full h-full inline-flex items-center justify-center gap-2 font-semibold px-5 select-none transition-all duration-200 ease-out cursor-pointer ${shadowClass} ${hoverClass}`;
 
     const label = resolveDynamicTokens(p.label, tokenCtx);
+    const inner = (
+      <>
+        <span>{label}</span>
+        {p.showArrow && (
+          <ArrowRight
+            size={16}
+            className="transition-transform duration-200 group-hover/btn:translate-x-1"
+          />
+        )}
+      </>
+    );
 
     if (!interactive) {
       return (
         <div style={style} className={className}>
-          {label}
+          {inner}
         </div>
       );
     }
 
     const safeHref = sanitizeLinkHref(p.href);
     const isExternal = /^https?:\/\//i.test(safeHref);
-    if (isExternal || p.openInNewTab) {
+    const isPdf = /\.pdf$/i.test(safeHref);
+    if (isExternal || isPdf || p.openInNewTab) {
       return (
         <a
           href={safeHref}
-          target={p.openInNewTab ? "_blank" : undefined}
-          rel={p.openInNewTab ? "noopener noreferrer" : undefined}
+          target={p.openInNewTab || isPdf ? "_blank" : undefined}
+          rel={p.openInNewTab || isPdf ? "noopener noreferrer" : undefined}
           style={style}
           className={className}
         >
-          {label}
+          {inner}
         </a>
       );
     }
 
     return (
       <Link href={safeHref} style={style} className={className}>
-        {label}
+        {inner}
       </Link>
     );
   }
 
+  // =========================================================================
+  // BOX / SHAPE / DIVIDER (Supports Transparent Fill & Frosted Glass)
+  // =========================================================================
   if (element.type === "shape") {
     const p = element.props;
     if (p.shapeKind === "divider") {
@@ -306,17 +540,20 @@ export default function CanvasElementContent({
     }
 
     const radius =
-      p.shapeKind === "circle"
+      p.shapeKind === "circle" || p.shapeKind === "pill"
         ? "9999px"
-        : p.shapeKind === "pill"
-          ? "9999px"
-          : `${p.borderRadius}px`;
+        : `${p.borderRadius}px`;
 
     return (
       <div
-        className={`w-full h-full ${SHADOW_CLASS[p.shadow] || ""}`}
+        className={`w-full h-full ${SHADOW_CLASS[p.shadow] || ""} ${
+          p.backdropBlur ? "backdrop-blur-md" : ""
+        }`}
         style={{
-          backgroundColor: p.backgroundColor,
+          backgroundColor:
+            p.backgroundColor === "transparent"
+              ? "transparent"
+              : p.backgroundColor,
           borderRadius: radius,
           borderWidth: p.borderWidth ? `${p.borderWidth}px` : undefined,
           borderStyle: p.borderWidth ? "solid" : undefined,
@@ -327,6 +564,44 @@ export default function CanvasElementContent({
     );
   }
 
+  // =========================================================================
+  // STANDALONE ICON ELEMENT
+  // =========================================================================
+  if (element.type === "icon") {
+    const p = element.props;
+    const Icon = STUDIO_ICON_MAP[p.icon] || Sparkles;
+    const isContainerless = p.containerShape === "none";
+    const radius =
+      p.containerShape === "circle"
+        ? "9999px"
+        : p.containerShape === "rounded"
+          ? "14px"
+          : "0px";
+
+    return (
+      <div
+        className={`w-full h-full flex items-center justify-center ${
+          isContainerless ? "" : SHADOW_CLASS[p.shadow] || ""
+        }`}
+        style={{
+          backgroundColor: isContainerless ? "transparent" : p.backgroundColor,
+          borderRadius: isContainerless ? undefined : radius,
+          borderWidth:
+            !isContainerless && p.borderWidth ? `${p.borderWidth}px` : undefined,
+          borderStyle: !isContainerless && p.borderWidth ? "solid" : undefined,
+          borderColor: !isContainerless && p.borderWidth ? p.borderColor : undefined,
+          color: p.color,
+          opacity: opacityStyle,
+        }}
+      >
+        <Icon size={p.iconSize || 28} strokeWidth={p.strokeWidth || 2} />
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // YOUTUBE VIDEO
+  // =========================================================================
   if (element.type === "video") {
     const p = element.props;
     const embedUrl = extractYouTubeEmbedUrl(p.url);

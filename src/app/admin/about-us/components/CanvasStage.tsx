@@ -1,10 +1,12 @@
 // src/app/admin/about-us/components/CanvasStage.tsx
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
+  ChevronDown,
+  ChevronUp,
   Copy,
   GripHorizontal,
   Lock,
@@ -22,6 +24,11 @@ import {
   type FreeformSection,
 } from "@/data/about-us-defaults";
 import CanvasElementContent from "@/components/page-builder/CanvasElementContent";
+import Footer from "@/components/layout/Footer";
+import { useSettings } from "@/components/layout/SettingsProvider";
+import { useNavItems } from "@/components/layout/NavProvider";
+import { useHrmsSubmenus } from "@/components/layout/navbar/useHrmsSubmenus";
+import { resourcesSubmenus, companySubmenus } from "@/data/submenus";
 
 type ResizeHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
 
@@ -49,7 +56,7 @@ type SectionResizeSession = {
   moved: boolean;
 };
 
-const MIN_EL_W = 40;
+const MIN_EL_W = 32;
 const MIN_EL_H = 24;
 const SNAP_THRESHOLD = 6;
 const GRID_STEP = 10;
@@ -67,6 +74,78 @@ const HANDLE_STYLES: Record<ResizeHandle, string> = {
 
 const ALL_HANDLES: ResizeHandle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
 
+/**
+ * Compact 1-column mobile footer preview used inside the 390px Mobile Studio
+ * canvas (since the desktop browser viewport triggers Footer's md: media queries).
+ */
+function MobileFooterPreview() {
+  const settings = useSettings();
+  const navItems = useNavItems();
+  const hrmsSubmenus = useHrmsSubmenus();
+
+  const hrmsNav = navItems.find((i) => i.footer_section === "hrms");
+  const secondary = navItems.filter(
+    (i) => i.footer_section === "resources" || i.footer_section === "company"
+  );
+
+  return (
+    <div className="bg-[#008080] text-white px-6 py-10 space-y-7 text-xs">
+      <div className="space-y-2">
+        <p className="text-xl font-bold">Kaizen</p>
+        <p className="text-teal-100/85">
+          {settings.company_slogan ||
+            "Malaysia's Tier 1 Enterprise HR Solution"}
+        </p>
+      </div>
+
+      {hrmsNav && (
+        <div>
+          <p className="font-semibold uppercase tracking-wider mb-2.5">
+            {hrmsNav.label}
+          </p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-teal-100/80">
+            {hrmsSubmenus.slice(0, 8).map((item, i) => (
+              <span key={i} className="truncate">
+                {item.name}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {secondary.length > 0 && (
+        <div className="grid grid-cols-2 gap-6">
+          {secondary.map((sec) => {
+            const list =
+              sec.footer_section === "resources"
+                ? resourcesSubmenus
+                : companySubmenus;
+            return (
+              <div key={sec.key}>
+                <p className="font-semibold uppercase tracking-wider mb-2">
+                  {sec.label}
+                </p>
+                <div className="space-y-1.5 text-teal-100/80">
+                  {list.map((l, idx) => (
+                    <p key={idx} className="truncate">
+                      {l.name}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="pt-4 border-t border-white/15 text-center text-teal-100/70">
+        {settings.footer_copyright_text ||
+          "© KaiZenHR Sdn Bhd 2025. All Rights Reserved."}
+      </div>
+    </div>
+  );
+}
+
 function computeSnapPosition(
   rawX: number,
   rawY: number,
@@ -78,7 +157,15 @@ function computeSnapPosition(
   breakpoint: Breakpoint,
   snapToGrid: boolean
 ): { x: number; y: number; guides: Omit<SnapGuide, "sectionId">[] } {
-  const xTargets = [0, 40, stageWidth / 2, stageWidth - 40, stageWidth];
+  const xTargets = [
+    0,
+    40,
+    70,
+    stageWidth / 2,
+    stageWidth - 70,
+    stageWidth - 40,
+    stageWidth,
+  ];
   const yTargets = [0, sectionHeight / 2, sectionHeight];
 
   for (const sib of siblings) {
@@ -162,6 +249,9 @@ export default function CanvasStage({
   onCommitInteraction,
   onUpdateElementText,
   onResizeSectionHeight,
+  onReorderSection,
+  onDuplicateSection,
+  onDeleteSection,
   onDuplicateElement,
   onDeleteElement,
   onMoveElementLayer,
@@ -192,6 +282,9 @@ export default function CanvasStage({
     nextContent: string
   ) => void;
   onResizeSectionHeight: (sectionId: string, nextHeight: number) => void;
+  onReorderSection: (sectionId: string, dir: -1 | 1) => void;
+  onDuplicateSection: (sectionId: string) => void;
+  onDeleteSection: (sectionId: string) => void;
   onDuplicateElement: (sectionId: string, elementId: string) => void;
   onDeleteElement: (sectionId: string, elementId: string) => void;
   onMoveElementLayer: (
@@ -203,6 +296,24 @@ export default function CanvasStage({
 }) {
   const stageWidth =
     breakpoint === "desktop" ? DESKTOP_STAGE_WIDTH : MOBILE_STAGE_WIDTH;
+  const navItems = useNavItems();
+
+  const innerArtboardRef = useRef<HTMLDivElement>(null);
+  const [innerHeight, setInnerHeight] = useState(1400);
+
+  // Measure actual scaled artboard height (sections + real Footer) so the
+  // outer scaled container NEVER has dead white space underneath!
+  useEffect(() => {
+    const el = innerArtboardRef.current;
+    if (!el) return;
+    const measure = () => {
+      if (el.scrollHeight > 0) setInnerHeight(el.scrollHeight);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [doc, breakpoint]);
 
   const dragRef = useRef<DragSession | null>(null);
   const sectionResizeRef = useRef<SectionResizeSession | null>(null);
@@ -284,7 +395,6 @@ export default function CanvasStage({
         setGuides([]);
       }
 
-      // Clamp to sane bounds while allowing negative Y hero-overlap up to -180px
       nextX = Math.max(-240, Math.min(stageWidth + 120, nextX));
       nextY = Math.max(-180, Math.min(sectionHeight + 120, nextY));
 
@@ -363,7 +473,10 @@ export default function CanvasStage({
     const dy = (e.clientY - sess.startClientY) / zoom;
     if (Math.abs(dy) < 2) return;
     sess.moved = true;
-    const nextH = Math.max(140, Math.min(2400, Math.round(sess.startHeight + dy)));
+    const nextH = Math.max(
+      140,
+      Math.min(2400, Math.round(sess.startHeight + dy))
+    );
     onResizeSectionHeight(section.id, nextH);
   };
 
@@ -380,28 +493,23 @@ export default function CanvasStage({
     }
   };
 
-  const totalHeight = doc.sections.reduce(
-    (sum, s) =>
-      sum + (breakpoint === "desktop" ? s.desktopHeight : s.mobileHeight),
-    0
-  );
-
   return (
     <div
-      className="flex-1 overflow-auto bg-slate-200/80 dark:bg-slate-950 p-6 sm:p-10"
+      className="flex-1 overflow-auto bg-slate-200/80 dark:bg-slate-950 p-6 sm:p-8"
       onClick={() => {
         if (editingElementId) onStopEditingText();
       }}
     >
-      {/* Scaled Artboard Container */}
+      {/* Scaled Artboard Shell — height tightly matches innerHeight * zoom so zero white gap */}
       <div
-        className="mx-auto shadow-2xl rounded-xl border border-slate-300 dark:border-slate-700 overflow-visible bg-white"
+        className="mx-auto shadow-2xl rounded-xl border border-slate-300 dark:border-slate-700 overflow-hidden bg-white"
         style={{
           width: `${Math.round(stageWidth * zoom)}px`,
-          minHeight: `${Math.round((totalHeight + 64) * zoom)}px`,
+          height: `${Math.round(innerHeight * zoom)}px`,
         }}
       >
         <div
+          ref={innerArtboardRef}
           style={{
             width: `${stageWidth}px`,
             transform: `scale(${zoom})`,
@@ -409,15 +517,19 @@ export default function CanvasStage({
             backgroundColor: doc.pageBgColor,
           }}
         >
-          {/* Simulated Public Navbar Bar (visual reference for 80px fixed navbar) */}
-          <div className="h-16 px-6 bg-white border-b border-slate-200 flex items-center justify-between select-none pointer-events-none">
-            <span className="text-2xl font-bold text-[#008080] tracking-tight">
+          {/* Simulated Public Navbar synced with live NavProvider items */}
+          <div className="h-20 px-8 bg-white border-b border-slate-100 flex items-center justify-between select-none pointer-events-none">
+            <span className="text-3xl font-bold text-[#008080] tracking-tight">
               kaizen
             </span>
-            <span className="text-xs font-medium text-slate-400">
-              Public Navbar Preview ({breakpoint === "desktop" ? "1200px Desktop" : "390px Mobile"})
-            </span>
-            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-yellow-400 text-slate-900">
+            {breakpoint === "desktop" && (
+              <div className="flex items-center gap-6 text-sm font-semibold text-slate-700">
+                {navItems.map((item) => (
+                  <span key={item.key}>{item.label}</span>
+                ))}
+              </div>
+            )}
+            <span className="px-6 py-2.5 rounded-full text-sm font-semibold bg-gradient-to-r from-yellow-400 to-yellow-500 text-slate-900 shadow-sm">
               Contact Us
             </span>
           </div>
@@ -451,7 +563,7 @@ export default function CanvasStage({
                   if (editingElementId) onStopEditingText();
                   onSelectSection(section.id);
                 }}
-                className={`relative select-none transition-shadow ${
+                className={`relative select-none group/sec transition-shadow ${
                   isSectionSelected ? "ring-2 ring-inset ring-blue-500" : ""
                 }`}
                 style={{
@@ -480,21 +592,69 @@ export default function CanvasStage({
                   )}
                 </div>
 
-                {/* Section Label Chip */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSelectSection(section.id);
-                  }}
-                  className={`absolute top-2 left-2 z-[60] px-2.5 py-0.5 rounded text-[11px] font-semibold shadow-xs transition-opacity cursor-pointer ${
+                {/* Section Controls Chip (Top-Left + Top-Right Delete/Move!) */}
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className={`absolute top-2 left-2 right-2 z-[60] flex items-center justify-between pointer-events-none transition-opacity ${
                     selectedSectionId === section.id
-                      ? "bg-blue-600 text-white opacity-100"
-                      : "bg-slate-900/60 text-white/90 opacity-60 hover:opacity-100"
+                      ? "opacity-100"
+                      : "opacity-0 group-hover/sec:opacity-100"
                   }`}
                 >
-                  {section.name} · {sectionHeight}px
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => onSelectSection(section.id)}
+                    className={`pointer-events-auto px-2.5 py-0.5 rounded text-[11px] font-semibold shadow-xs cursor-pointer ${
+                      selectedSectionId === section.id
+                        ? "bg-blue-600 text-white"
+                        : "bg-slate-900/75 text-white"
+                    }`}
+                  >
+                    {section.name} · {sectionHeight}px
+                  </button>
+
+                  <div className="pointer-events-auto flex items-center gap-0.5 bg-slate-900/85 text-white px-1 py-0.5 rounded-lg shadow-sm">
+                    <button
+                      type="button"
+                      disabled={idx === 0}
+                      onClick={() => onReorderSection(section.id, -1)}
+                      title="Move section up"
+                      className="p-1 hover:bg-slate-700 rounded disabled:opacity-30 cursor-pointer"
+                    >
+                      <ChevronUp size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={idx === doc.sections.length - 1}
+                      onClick={() => onReorderSection(section.id, 1)}
+                      title="Move section down"
+                      className="p-1 hover:bg-slate-700 rounded disabled:opacity-30 cursor-pointer"
+                    >
+                      <ChevronDown size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDuplicateSection(section.id)}
+                      title="Duplicate section"
+                      className="p-1 hover:bg-slate-700 rounded cursor-pointer"
+                    >
+                      <Copy size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={doc.sections.length <= 1}
+                      onClick={() => onDeleteSection(section.id)}
+                      title={
+                        doc.sections.length <= 1
+                          ? "At least one section is required"
+                          : "Delete section"
+                      }
+                      className="p-1 text-red-300 hover:bg-red-600 hover:text-white rounded disabled:opacity-30 cursor-pointer"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </div>
 
                 {/* Magnetic Smart Snap Guides */}
                 {sectionGuides.map((g, gi) =>
@@ -558,7 +718,6 @@ export default function CanvasStage({
                             : "cursor-move"
                       }`}
                     >
-                      {/* Actual WYSIWYG Element Content */}
                       <CanvasElementContent
                         element={el}
                         breakpoint={breakpoint}
@@ -574,12 +733,10 @@ export default function CanvasStage({
                         }}
                       />
 
-                      {/* Hover Outline */}
                       {!isSelected && (
                         <div className="pointer-events-none absolute inset-0 rounded border border-transparent group-hover:border-blue-400/80 transition-colors" />
                       )}
 
-                      {/* Selected Bounding Box + 8 Handles + Floating Action Bar */}
                       {isSelected && (
                         <>
                           <div
@@ -590,7 +747,6 @@ export default function CanvasStage({
                             }`}
                           />
 
-                          {/* Floating Quick Toolbar above element */}
                           {!isEditing && (
                             <div
                               onPointerDown={(e) => e.stopPropagation()}
@@ -602,7 +758,11 @@ export default function CanvasStage({
                               <button
                                 type="button"
                                 onClick={() =>
-                                  onMoveElementLayer(section.id, el.id, "forward")
+                                  onMoveElementLayer(
+                                    section.id,
+                                    el.id,
+                                    "forward"
+                                  )
                                 }
                                 title="Bring forward"
                                 className="p-1 hover:bg-slate-700 rounded cursor-pointer"
@@ -612,7 +772,11 @@ export default function CanvasStage({
                               <button
                                 type="button"
                                 onClick={() =>
-                                  onMoveElementLayer(section.id, el.id, "backward")
+                                  onMoveElementLayer(
+                                    section.id,
+                                    el.id,
+                                    "backward"
+                                  )
                                 }
                                 title="Send backward"
                                 className="p-1 hover:bg-slate-700 rounded cursor-pointer"
@@ -645,7 +809,9 @@ export default function CanvasStage({
                               </button>
                               <button
                                 type="button"
-                                onClick={() => onDeleteElement(section.id, el.id)}
+                                onClick={() =>
+                                  onDeleteElement(section.id, el.id)
+                                }
                                 title="Delete (Del)"
                                 className="p-1 hover:bg-red-600 text-red-300 hover:text-white rounded cursor-pointer"
                               >
@@ -654,14 +820,12 @@ export default function CanvasStage({
                             </div>
                           )}
 
-                          {/* Live Coordinate / Size HUD while dragging or resizing */}
                           {hudText && (
                             <div className="pointer-events-none absolute -bottom-7 left-1/2 -translate-x-1/2 bg-pink-600 text-white px-2 py-0.5 rounded text-[11px] font-mono font-semibold shadow-md whitespace-nowrap z-[95]">
                               {hudText}
                             </div>
                           )}
 
-                          {/* 8 Corner & Edge Resize Handles */}
                           {!el.locked &&
                             !isEditing &&
                             ALL_HANDLES.map((h) => (
@@ -691,7 +855,7 @@ export default function CanvasStage({
                   );
                 })}
 
-                {/* Interactive Bottom Section Height Resize Handle */}
+                {/* Bottom Section Height Resize Handle */}
                 <div
                   onPointerDown={(e) => startSectionResize(e, section)}
                   onPointerMove={(e) => moveSectionResize(e, section)}
@@ -710,6 +874,11 @@ export default function CanvasStage({
               </div>
             );
           })}
+
+          {/* REAL LIVE PUBLIC FOOTER (non-interactive preview so links don't navigate away) */}
+          <div className="relative pointer-events-none select-none">
+            {breakpoint === "desktop" ? <Footer /> : <MobileFooterPreview />}
+          </div>
         </div>
       </div>
     </div>

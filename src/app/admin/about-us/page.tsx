@@ -1,6 +1,8 @@
 // src/app/admin/about-us/page.tsx
 import type { Metadata } from "next";
 import { getPublicSettings } from "@/lib/public-settings";
+import { getPublicNavItems } from "@/lib/nav-items";
+import { DEFAULT_NAV_ITEMS } from "@/data/navbar-defaults";
 import { buildTokenContext } from "@/data/about-us-defaults";
 import { getAboutPageAdmin } from "./actions";
 import AboutUsStudio from "./AboutUsStudio";
@@ -10,9 +12,12 @@ export const metadata: Metadata = {
 };
 
 export default async function AboutUsAdminPage() {
-  const [result, settings] = await Promise.all([
+  // The canvas renders the real public Footer, so it needs the same cached
+  // settings + navigation payloads the public layout distributes.
+  const [result, settings, navItems] = await Promise.all([
     getAboutPageAdmin(),
     getPublicSettings().catch(() => ({})),
+    getPublicNavItems().catch(() => DEFAULT_NAV_ITEMS),
   ]);
 
   if (!result.success || !result.data) {
@@ -45,5 +50,12 @@ export default async function AboutUsAdminPage() {
 
   const tokenCtx = buildTokenContext(settings);
 
-  return <AboutUsStudio initialData={result.data} tokenCtx={tokenCtx} />;
+  return (
+    <AboutUsStudio
+      initialData={result.data}
+      tokenCtx={tokenCtx}
+      publicSettings={settings}
+      publicNavItems={navItems}
+    />
+  );
 }
