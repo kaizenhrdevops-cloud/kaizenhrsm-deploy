@@ -1,3 +1,4 @@
+// src/components/ui/Button.tsx
 import React from "react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
@@ -51,7 +52,7 @@ export default function Button({
     "disabled:opacity-60 disabled:cursor-not-allowed",
     VARIANTS[variant],
     SIZES[size],
-    className
+    className,
   );
 
   if (href) {

@@ -1,3 +1,4 @@
+// src/components/layout/NewsletterForm.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -139,7 +140,7 @@ export default function NewsletterForm() {
       setEmail("");
     } catch (error: unknown) {
       setMessage(
-        error instanceof Error ? error.message : "Something went wrong."
+        error instanceof Error ? error.message : "Something went wrong.",
       );
       setIsError(true);
     } finally {

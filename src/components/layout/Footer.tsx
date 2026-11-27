@@ -19,15 +19,51 @@ const FALLBACK_SETTINGS: PublicSettings = {
   contact_email: "inquiry@kaizenhrms.com",
   contact_phone: "+603-62010242",
   social_links: "[]",
-  link_app_store: "#",
-  link_google_play: "#",
+  link_app_store: "",
+  link_google_play: "",
   footer_copyright_text: "© KaiZenHR Sdn Bhd 2025. All Rights Reserved.",
 };
 
-function parseSocialLinks(raw: string | undefined) {
+type ValidSocialLink = {
+  platform: string;
+  url: string;
+};
+
+/**
+ * Treats empty strings, whitespace, "#", and unsafe schemes as unconfigured.
+ * Auto-prefixes bare domains (e.g. "facebook.com/kaizen") with https://.
+ */
+function normalizeExternalUrl(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed === "#") return null;
+  if (/^(javascript|data|vbscript):/i.test(trimmed)) return null;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^[a-z0-9-]+(\.[a-z0-9-]+)+/i.test(trimmed)) {
+    return `https://${trimmed}`;
+  }
+  return null;
+}
+
+function parseSocialLinks(raw: string | undefined): ValidSocialLink[] {
   try {
     const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.reduce<ValidSocialLink[]>((acc, item) => {
+      if (!item || typeof item !== "object") return acc;
+      const url = normalizeExternalUrl((item as { url?: unknown }).url);
+      if (!url) return acc;
+
+      const rawPlatform = (item as { platform?: unknown }).platform;
+      const platform =
+        typeof rawPlatform === "string" && rawPlatform.trim()
+          ? rawPlatform.trim()
+          : "Website";
+
+      acc.push({ platform, url });
+      return acc;
+    }, []);
   } catch {
     return [];
   }
@@ -41,8 +77,16 @@ const Footer = () => {
     ...useSettings(),
   };
 
-  // Parse social links safely
+  // Validated social & mobile app links — sections disappear completely when empty
   const socialLinks = parseSocialLinks(settings.social_links);
+  const appStoreUrl = normalizeExternalUrl(settings.link_app_store);
+  const googlePlayUrl = normalizeExternalUrl(settings.link_google_play);
+
+  const showSocials = socialLinks.length > 0;
+  const showMobileApps = Boolean(appStoreUrl || googlePlayUrl);
+  const hasBothAppButtons = Boolean(appStoreUrl && googlePlayUrl);
+  const bottomColumnCount =
+    1 + (showSocials ? 1 : 0) + (showMobileApps ? 1 : 0);
 
   // Active top-level nav items — hides/removes Footer sections when hidden or deleted
   const navItems = useNavItems();
@@ -63,7 +107,7 @@ const Footer = () => {
   const hrmsCol1 = hrmsSubmenus.slice(0, midpoint);
   const hrmsCol2 = hrmsSubmenus.slice(midpoint);
 
-  // Dynamically adapt 12-column spans when sections are hidden or deleted
+  // Dynamically adapt 12-column spans when top link sections are hidden or deleted
   const brandColClass =
     !showHrms && !hasSecondary
       ? "md:col-span-12"
@@ -86,6 +130,13 @@ const Footer = () => {
     : secondarySections.length === 2
       ? "md:col-span-8 xl:col-span-8 grid grid-cols-2 gap-x-8 gap-y-8"
       : "md:col-span-6 xl:col-span-6 grid grid-cols-1 gap-y-8";
+
+  const bottomGridClass =
+    bottomColumnCount === 3
+      ? "grid grid-cols-1 md:grid-cols-3 gap-8 pt-12 items-start"
+      : bottomColumnCount === 2
+        ? "grid grid-cols-1 md:grid-cols-2 gap-8 pt-12 items-start"
+        : "pt-12 flex flex-col items-center";
 
   return (
     <footer className="bg-[#008080] text-white">
@@ -182,25 +233,45 @@ const Footer = () => {
         <div className="border-t border-white/20"></div>
 
         {/* BOTTOM SECTION: ACTIONS */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-12 items-start">
+        <div className={bottomGridClass}>
           {/* Newsletter */}
-          <div className="w-full">
+          <div
+            className={
+              bottomColumnCount === 1
+                ? "w-full max-w-md text-center"
+                : bottomColumnCount === 2
+                  ? "w-full max-w-md"
+                  : "w-full"
+            }
+          >
             <h3 className="text-base font-semibold mb-4">
               Subscribe to Kaizen&apos;s Newsletter
             </h3>
             <NewsletterForm />
           </div>
 
-          {/* Social Media - Dynamic List */}
-          <div className="flex flex-col items-start md:items-center text-left md:text-center">
-            <h3 className="text-base font-semibold mb-4">Follow us</h3>
-            <div className="flex space-x-4 justify-start md:justify-center flex-wrap gap-y-4">
-              {socialLinks.map(
-                (link: { platform: string; url: string }, index: number) => {
+          {/* Social Media — hidden completely when no valid links are configured */}
+          {showSocials && (
+            <div
+              className={
+                bottomColumnCount === 2
+                  ? "flex flex-col items-start md:items-end text-left md:text-right"
+                  : "flex flex-col items-start md:items-center text-left md:text-center"
+              }
+            >
+              <h3 className="text-base font-semibold mb-4">Follow us</h3>
+              <div
+                className={`flex gap-3 flex-wrap ${
+                  bottomColumnCount === 2
+                    ? "justify-start md:justify-end"
+                    : "justify-start md:justify-center"
+                }`}
+              >
+                {socialLinks.map((link, index) => {
                   const Icon = getSocialIcon(link.platform);
                   return (
                     <a
-                      key={index}
+                      key={`${link.platform}-${index}`}
                       href={link.url}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -211,55 +282,76 @@ const Footer = () => {
                       <Icon size={20} />
                     </a>
                   );
-                }
-              )}
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Mobile App Downloads */}
-          <div className="w-full">
-            <h3 className="text-base font-semibold mb-4">
-              Download the Mobile App
-            </h3>
-            <div className="grid grid-cols-2 gap-3 sm:gap-4">
-              <a
-                href={settings.link_app_store || "#"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-black hover:bg-gray-800 px-3 py-2 sm:px-4 sm:py-2 rounded-lg flex items-center space-x-2 transition-colors min-w-0"
+          {/* Mobile App Downloads — hidden completely when neither store URL is configured */}
+          {showMobileApps && (
+            <div
+              className={
+                bottomColumnCount === 2 ? "w-full max-w-md md:ml-auto" : "w-full"
+              }
+            >
+              <h3 className="text-base font-semibold mb-4">
+                Download the Mobile App
+              </h3>
+              <div
+                className={
+                  hasBothAppButtons
+                    ? "grid grid-cols-2 gap-3 sm:gap-4"
+                    : "flex flex-wrap gap-3"
+                }
               >
-                <FaApple size={24} className="shrink-0 text-white" />
-                <div className="text-left min-w-0">
-                  <div
-                    className={`${typeMeta} text-gray-300 truncate leading-tight`}
+                {appStoreUrl && (
+                  <a
+                    href={appStoreUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`bg-black hover:bg-gray-800 px-3.5 py-2 sm:px-4 sm:py-2 rounded-lg flex items-center space-x-2.5 transition-colors min-w-0 ${
+                      hasBothAppButtons ? "" : "min-w-[180px]"
+                    }`}
                   >
-                    Download on the
-                  </div>
-                  <div className="font-semibold text-sm text-white whitespace-nowrap truncate leading-tight">
-                    App Store
-                  </div>
-                </div>
-              </a>
-              <a
-                href={settings.link_google_play || "#"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-black hover:bg-gray-800 px-3 py-2 sm:px-4 sm:py-2 rounded-lg flex items-center space-x-2 transition-colors min-w-0"
-              >
-                <FaGooglePlay size={20} className="shrink-0 text-white" />
-                <div className="text-left min-w-0">
-                  <div
-                    className={`${typeMeta} text-gray-300 truncate leading-tight`}
+                    <FaApple size={24} className="shrink-0 text-white" />
+                    <div className="text-left min-w-0">
+                      <div
+                        className={`${typeMeta} text-gray-300 truncate leading-tight`}
+                      >
+                        Download on the
+                      </div>
+                      <div className="font-semibold text-sm text-white whitespace-nowrap truncate leading-tight">
+                        App Store
+                      </div>
+                    </div>
+                  </a>
+                )}
+
+                {googlePlayUrl && (
+                  <a
+                    href={googlePlayUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`bg-black hover:bg-gray-800 px-3.5 py-2 sm:px-4 sm:py-2 rounded-lg flex items-center space-x-2.5 transition-colors min-w-0 ${
+                      hasBothAppButtons ? "" : "min-w-[180px]"
+                    }`}
                   >
-                    GET IT ON
-                  </div>
-                  <div className="font-semibold text-sm text-white whitespace-nowrap truncate leading-tight">
-                    Google Play
-                  </div>
-                </div>
-              </a>
+                    <FaGooglePlay size={20} className="shrink-0 text-white" />
+                    <div className="text-left min-w-0">
+                      <div
+                        className={`${typeMeta} text-gray-300 truncate leading-tight`}
+                      >
+                        GET IT ON
+                      </div>
+                      <div className="font-semibold text-sm text-white whitespace-nowrap truncate leading-tight">
+                        Google Play
+                      </div>
+                    </div>
+                  </a>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Copyright Section */}

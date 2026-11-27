@@ -1,3 +1,4 @@
+// src/components/ui/ConfirmModal.tsx
 "use client";
 
 import { useEffect } from "react";
@@ -57,7 +58,7 @@ export default function ConfirmModal({
         <div
           className={cn(
             "pointer-events-auto w-full max-w-md rounded-xl bg-white dark:bg-gray-800",
-            "border border-gray-200 dark:border-gray-700 shadow-2xl overflow-hidden"
+            "border border-gray-200 dark:border-gray-700 shadow-2xl overflow-hidden",
           )}
           onClick={(e) => e.stopPropagation()}
           role="dialog"
@@ -70,7 +71,7 @@ export default function ConfirmModal({
                   "p-2 rounded-lg",
                   variant === "danger"
                     ? "bg-red-100 dark:bg-red-900/30"
-                    : "bg-blue-100 dark:bg-blue-900/30"
+                    : "bg-blue-100 dark:bg-blue-900/30",
                 )}
               >
                 {variant === "danger" ? (
@@ -113,7 +114,7 @@ export default function ConfirmModal({
                 "px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
                 variant === "danger"
                   ? "bg-red-600 hover:bg-red-700"
-                  : "bg-blue-600 hover:bg-blue-700"
+                  : "bg-blue-600 hover:bg-blue-700",
               )}
             >
               {isBusy ? "Working…" : confirmLabel}

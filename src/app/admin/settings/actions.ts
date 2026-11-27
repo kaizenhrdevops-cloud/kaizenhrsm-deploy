@@ -4,14 +4,20 @@
 import { createClient } from "@/lib/server";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { PUBLIC_SETTINGS_TAG } from "@/lib/cache-tags";
+import { ALL_SETTING_KEYS } from "./settings-defaults";
+import type { Json } from "@/types/supabase";
 
 type SystemSettings = {
   [key: string]: string;
 };
 
+const ALLOWED_KEY_SET = new Set(ALL_SETTING_KEYS);
+
 // Helper function to check if current user is an ACTIVE super_admin
 // (a suspended super_admin keeps no settings power).
-async function checkSuperAdminAccess(supabase: any) {
+async function checkSuperAdminAccess(
+  supabase: Awaited<ReturnType<typeof createClient>>
+) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -52,51 +58,25 @@ export async function getSystemSettings(): Promise<{
     };
   }
 
-  const settingsKeys = [
-    "newsletter_frequency",
-    "newsletter_send_day",
-    "newsletter_send_time",
-    "newsletter_transactional_reserve",
-    "newsletter_daily_limit",
-    "audit_log_retention_days",
-    "contact_address",
-    "contact_email",
-    "contact_phone",
-    "company_slogan",
-    "company_founding_year",
-    "social_links",
-    "link_app_store",
-    "link_google_play",
-    "home_hero_video_id",
-    "marketing_award_image_1",
-    "marketing_award_image_2",
-    "marketing_trial_image",
-    "integration_google_maps_embed",
-    "footer_copyright_text",
-    "blog_default_author_name",
-    "admin_notification_email",
-    "email_sender_name",
-    "email_sender_address",
-    "enable_maintenance_mode",
-    "enable_public_registration"
-  ];
-
   const { data, error } = await supabase
     .from("system_settings")
     .select("key, value")
-    .in("key", settingsKeys);
+    .in("key", ALL_SETTING_KEYS);
 
   if (error) {
     return { success: false, settings: {}, message: error.message };
   }
 
   const settingsMap: SystemSettings = {};
-  data.forEach((row) => {
+  (data ?? []).forEach((row) => {
+    const raw = row.value as unknown;
+    const rawString = typeof raw === "string" ? raw : JSON.stringify(raw);
     try {
-      const parsed = JSON.parse(row.value as string);
-      settingsMap[row.key] = typeof parsed === 'string' ? parsed : JSON.stringify(parsed);
-    } catch (e) {
-      settingsMap[row.key] = row.value as string;
+      const parsed = JSON.parse(rawString);
+      settingsMap[row.key] =
+        typeof parsed === "string" ? parsed : JSON.stringify(parsed);
+    } catch {
+      settingsMap[row.key] = rawString;
     }
   });
 
@@ -104,40 +84,74 @@ export async function getSystemSettings(): Promise<{
 }
 
 export async function updateSystemSetting(key: string, value: string) {
+  return updateSystemSettingsBatch({ [key]: value });
+}
+
+export async function updateSystemSettingsBatch(
+  updates: Record<string, string>
+): Promise<{
+  success: boolean;
+  message: string;
+  updatedKeys?: string[];
+}> {
   const supabase = await createClient();
   const authCheck = await checkSuperAdminAccess(supabase);
   if (!authCheck.authorized || !authCheck.userId) {
-    return { success: false, message: authCheck.message };
+    return {
+      success: false,
+      message: authCheck.message || "Access denied.",
+    };
   }
 
-  const valueToSave = JSON.stringify(value);
+  const entries = Object.entries(updates).filter(([key]) =>
+    ALLOWED_KEY_SET.has(key)
+  );
+
+  if (entries.length === 0) {
+    return { success: false, message: "No valid settings to update." };
+  }
+
+  const nowISO = new Date().toISOString();
+  const rows = entries.map(([key, value]) => ({
+    key,
+    value: JSON.stringify(value) as Json,
+    updated_by: authCheck.userId,
+    updated_at: nowISO,
+  }));
 
   const { error } = await supabase
     .from("system_settings")
-    .upsert({
-      key: key,
-      value: valueToSave as any,
-      updated_by: authCheck.userId,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'key' });
+    .upsert(rows, { onConflict: "key" });
 
   if (error) {
     return { success: false, message: error.message };
   }
 
+  const updatedKeys = entries.map(([key]) => key);
+
   await supabase.from("admin_audit_log").insert({
     admin_id: authCheck.userId,
     action: "settings.update",
     details: {
-      message: `Updated setting: ${key}`,
-      key,
+      message:
+        updatedKeys.length === 1
+          ? `Updated setting: ${updatedKeys[0]}`
+          : `Updated ${updatedKeys.length} settings: ${updatedKeys.join(", ")}`,
+      keys: updatedKeys,
     },
   });
 
   revalidatePath("/admin/settings");
   revalidatePath("/", "layout");
-  // Instantly invalidate the cached public settings (see lib/public-settings)
-  revalidateTag(PUBLIC_SETTINGS_TAG); 
-  
-  return { success: true, message: "Setting updated successfully" };
+  // Instantly invalidate cached public settings (see lib/public-settings)
+  revalidateTag(PUBLIC_SETTINGS_TAG);
+
+  return {
+    success: true,
+    message:
+      updatedKeys.length === 1
+        ? "Setting saved successfully."
+        : `${updatedKeys.length} settings saved successfully.`,
+    updatedKeys,
+  };
 }
