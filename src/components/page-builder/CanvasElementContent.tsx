@@ -36,6 +36,7 @@ import {
 import {
   extractYouTubeEmbedUrl,
   resolveDynamicTokens,
+  resolveFontFamilyCss,
   sanitizeLinkHref,
   type Breakpoint,
   type ButtonHoverEffect,
@@ -158,6 +159,7 @@ export default function CanvasElementContent({
     const accent = p.accentColor || "#008080";
 
     const baseStyle: React.CSSProperties = {
+      fontFamily: resolveFontFamilyCss(p.fontFamily),
       fontSize: `${fontSize}px`,
       fontWeight: Number(p.fontWeight),
       fontStyle: p.fontStyle || "normal",

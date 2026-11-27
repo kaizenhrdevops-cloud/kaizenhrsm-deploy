@@ -4,6 +4,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import {
+  ArrowDown,
+  ArrowDownToLine,
+  ArrowUp,
+  ArrowUpToLine,
   Award,
   BarChart3,
   Check,
@@ -36,6 +40,7 @@ import {
   Trash2,
   Type,
   Undo2,
+  Unlock,
   Wand2,
   Youtube,
 } from "lucide-react";
@@ -102,6 +107,7 @@ function createNewElement(kind: NewElementKind, nextZ: number): CanvasElement {
         mobile: { x: 20, y: 40, w: 350, h: 52 },
         props: {
           tag: "h2",
+          fontFamily: "geist",
           textStyle: "plain",
           content: "New Section Heading",
           fontSize: 34,
@@ -122,9 +128,10 @@ function createNewElement(kind: NewElementKind, nextZ: number): CanvasElement {
         mobile: { x: 20, y: 100, w: 350, h: 130 },
         props: {
           tag: "p",
+          fontFamily: "geist",
           textStyle: "plain",
           content:
-            "Double-click directly on this text box to edit it on the canvas, or customize typography shapes in the right panel.",
+            "Double-click directly on this text box to edit it on the canvas, or pick from 10 font families in the right panel.",
           fontSize: 16,
           mobileFontSize: 15,
           fontWeight: "400",
@@ -312,14 +319,12 @@ export default function AboutUsStudio({
   >("idle");
   const [isPublishing, setIsPublishing] = useState(false);
 
-  // Studio view state
   const [breakpoint, setBreakpoint] = useState<Breakpoint>("desktop");
   const [zoom, setZoom] = useState(0.75);
   const [showGrid, setShowGrid] = useState(false);
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [leftTab, setLeftTab] = useState<"elements" | "layers">("elements");
 
-  // Selection & inline editing
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(
     initialData.draftDoc.sections[0]?.id ?? null
   );
@@ -328,14 +333,12 @@ export default function AboutUsStudio({
   );
   const [editingElementId, setEditingElementId] = useState<string | null>(null);
 
-  // Modals
   const [showPreview, setShowPreview] = useState(false);
   const [showSeo, setShowSeo] = useState(false);
   const [showRevisions, setShowRevisions] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [isWorkingModal, setIsWorkingModal] = useState(false);
 
-  // Undo / Redo history
   const historyRef = useRef<FreeformDocument[]>([
     structuredClone(initialData.draftDoc),
   ]);
@@ -384,7 +387,6 @@ export default function AboutUsStudio({
     setZoom(next === "mobile" ? 1 : 0.75);
   };
 
-  // Debounced draft autosave
   const flushDraftSave = useCallback(async (): Promise<boolean> => {
     if (autosaveTimerRef.current) {
       clearTimeout(autosaveTimerRef.current);
@@ -412,7 +414,6 @@ export default function AboutUsStudio({
     autosaveTimerRef.current = setTimeout(() => {
       void flushDraftSave();
     }, 1500);
-
     return () => {
       if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
     };
@@ -444,9 +445,7 @@ export default function AboutUsStudio({
     ) => {
       setDoc((prev) => {
         const next = updater(prev);
-        if (recordHistory) {
-          pushHistory(next);
-        }
+        if (recordHistory) pushHistory(next);
         return next;
       });
     },
@@ -514,10 +513,8 @@ export default function AboutUsStudio({
       toast.error("Add a section first.");
       return;
     }
-
     const maxZ = targetSec.elements.reduce((m, e) => Math.max(m, e.zIndex), 1);
     const el = createNewElement(kind, maxZ + 1);
-
     mutateDoc((prev) => ({
       ...prev,
       sections: prev.sections.map((sec) =>
@@ -526,7 +523,6 @@ export default function AboutUsStudio({
           : sec
       ),
     }));
-
     setSelectedSectionId(targetSec.id);
     setSelectedElementId(el.id);
     toast.success(`Added ${el.name} to "${targetSec.name}"`);
@@ -637,10 +633,7 @@ export default function AboutUsStudio({
       mobileHeight: 360,
       elements: [],
     };
-    mutateDoc((prev) => ({
-      ...prev,
-      sections: [...prev.sections, newSec],
-    }));
+    mutateDoc((prev) => ({ ...prev, sections: [...prev.sections, newSec] }));
     setSelectedSectionId(newSec.id);
     setSelectedElementId(null);
     toast.success(`Added "${newSec.name}"`);
@@ -681,17 +674,15 @@ export default function AboutUsStudio({
 
   const handleDeleteSection = useCallback(
     (sectionId: string) => {
-      const currentSections = docRef.current.sections;
-      if (currentSections.length <= 1) {
+      const current = docRef.current.sections;
+      if (current.length <= 1) {
         toast.error("At least one section is required.");
         return;
       }
-
-      const targetIndex = currentSections.findIndex((s) => s.id === sectionId);
-      if (targetIndex === -1) return;
-      const targetName = currentSections[targetIndex].name;
-      const fallbackSec =
-        currentSections[targetIndex - 1] ?? currentSections[targetIndex + 1];
+      const idx = current.findIndex((s) => s.id === sectionId);
+      if (idx === -1) return;
+      const name = current[idx].name;
+      const fallback = current[idx - 1] ?? current[idx + 1];
 
       mutateDoc((prev) => ({
         ...prev,
@@ -699,12 +690,11 @@ export default function AboutUsStudio({
       }));
 
       if (selectedSectionId === sectionId) {
-        setSelectedSectionId(fallbackSec?.id ?? null);
+        setSelectedSectionId(fallback?.id ?? null);
         setSelectedElementId(null);
         setEditingElementId(null);
       }
-
-      toast.success(`Deleted "${targetName}" (press Ctrl+Z to undo)`);
+      toast.success(`Deleted "${name}" (Ctrl+Z to undo)`);
     },
     [mutateDoc, selectedSectionId]
   );
@@ -717,7 +707,6 @@ export default function AboutUsStudio({
     toast.success("Mobile canvas auto-arranged from Desktop layout.");
   };
 
-  // Keyboard shortcuts
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -735,14 +724,12 @@ export default function AboutUsStudio({
         else handleUndo();
         return;
       }
-
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "y") {
         if (isTyping) return;
         e.preventDefault();
         handleRedo();
         return;
       }
-
       if (isTyping || !selectedSection || !selectedElement) return;
 
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "d") {
@@ -750,7 +737,6 @@ export default function AboutUsStudio({
         handleDuplicateElement(selectedSection.id, selectedElement.id);
         return;
       }
-
       if (e.key === "Delete" || e.key === "Backspace") {
         if (!selectedElement.locked) {
           e.preventDefault();
@@ -758,7 +744,6 @@ export default function AboutUsStudio({
         }
         return;
       }
-
       if (
         !selectedElement.locked &&
         ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)
@@ -766,30 +751,28 @@ export default function AboutUsStudio({
         e.preventDefault();
         const step = e.shiftKey ? 10 : 1;
         const f = selectedElement[breakpoint];
-        const nextFrame: ElementFrame = {
-          ...f,
-          x:
-            e.key === "ArrowLeft"
-              ? f.x - step
-              : e.key === "ArrowRight"
-                ? f.x + step
-                : f.x,
-          y:
-            e.key === "ArrowUp"
-              ? f.y - step
-              : e.key === "ArrowDown"
-                ? f.y + step
-                : f.y,
-        };
         handleUpdateElementFrame(
           selectedSection.id,
           selectedElement.id,
-          nextFrame,
+          {
+            ...f,
+            x:
+              e.key === "ArrowLeft"
+                ? f.x - step
+                : e.key === "ArrowRight"
+                  ? f.x + step
+                  : f.x,
+            y:
+              e.key === "ArrowUp"
+                ? f.y - step
+                : e.key === "ArrowDown"
+                  ? f.y + step
+                  : f.y,
+          },
           true
         );
       }
     };
-
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [
@@ -810,7 +793,6 @@ export default function AboutUsStudio({
       clearTimeout(autosaveTimerRef.current);
       autosaveTimerRef.current = null;
     }
-
     setIsPublishing(true);
     try {
       const res = await publishAboutPage(docRef.current, seoRef.current);
@@ -873,35 +855,30 @@ export default function AboutUsStudio({
     <SettingsProvider value={publicSettings}>
       <NavProvider value={publicNavItems}>
         <div className="-m-4 md:-m-6 h-[calc(100vh-4rem)] flex flex-col bg-slate-100 dark:bg-slate-950 overflow-hidden">
-          {/* TOP STUDIO TOOLBAR */}
+          {/* TOP STUDIO BAR */}
           <header className="h-14 px-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 shrink-0 overflow-x-auto">
-            {/* Left: Title + Draft Status */}
-            <div className="flex items-center gap-3 shrink-0">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-sm text-slate-900 dark:text-white">
-                  About Us Studio
-                </span>
-                <a
-                  href="/company/about-us"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title="Open live About Us page"
-                  className="p-1 rounded text-slate-400 hover:text-blue-600 transition-colors"
-                >
-                  <ExternalLink size={14} />
-                </a>
-              </div>
-
+            <div className="flex items-center gap-2.5 shrink-0">
+              <span className="font-bold text-sm text-slate-900 dark:text-white whitespace-nowrap">
+                About Us Studio
+              </span>
+              <a
+                href="/company/about-us"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open live About Us page"
+                className="p-1 rounded text-slate-400 hover:text-blue-600 transition-colors"
+              >
+                <ExternalLink size={14} />
+              </a>
               <span className="h-4 w-px bg-slate-200 dark:bg-slate-700" />
-
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium">
+              <span className="inline-flex items-center gap-1 text-xs font-medium whitespace-nowrap">
                 {saveState === "saving" ? (
                   <span className="text-blue-600 dark:text-blue-400 inline-flex items-center gap-1">
-                    <Loader2 size={12} className="animate-spin" /> Saving draft...
+                    <Loader2 size={12} className="animate-spin" /> Saving...
                   </span>
                 ) : hasUnpublished ? (
                   <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
-                    Unpublished draft
+                    Unpublished
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
@@ -911,13 +888,12 @@ export default function AboutUsStudio({
               </span>
             </div>
 
-            {/* Center: Breakpoint + Undo/Redo + Zoom + Grid/Snap */}
             <div className="flex items-center gap-2 shrink-0">
               <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
                 <button
                   type="button"
                   onClick={() => handleSwitchBreakpoint("desktop")}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer ${
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer ${
                     breakpoint === "desktop"
                       ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-xs"
                       : "text-slate-500 hover:text-slate-800 dark:hover:text-white"
@@ -928,7 +904,7 @@ export default function AboutUsStudio({
                 <button
                   type="button"
                   onClick={() => handleSwitchBreakpoint("mobile")}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer ${
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer ${
                     breakpoint === "mobile"
                       ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-xs"
                       : "text-slate-500 hover:text-slate-800 dark:hover:text-white"
@@ -942,10 +918,9 @@ export default function AboutUsStudio({
                 <button
                   type="button"
                   onClick={handleAutoFitMobile}
-                  title="Auto-arrange Mobile positions from Desktop layout"
                   className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-teal-50 text-teal-700 hover:bg-teal-100 dark:bg-teal-900/30 dark:text-teal-300 cursor-pointer"
                 >
-                  <Wand2 size={13} /> Auto-fit Mobile
+                  <Wand2 size={13} /> Auto-fit
                 </button>
               )}
 
@@ -987,7 +962,7 @@ export default function AboutUsStudio({
                 type="button"
                 onClick={() => setShowGrid((v) => !v)}
                 title="Toggle 20px visual grid"
-                className={`p-1.5 rounded-lg border text-xs cursor-pointer ${
+                className={`p-1.5 rounded-lg border cursor-pointer ${
                   showGrid
                     ? "bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/30 dark:border-blue-800"
                     : "border-transparent text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
@@ -999,8 +974,8 @@ export default function AboutUsStudio({
               <button
                 type="button"
                 onClick={() => setSnapEnabled((v) => !v)}
-                title="Toggle magnetic smart snap guides (hold Alt while dragging to bypass)"
-                className={`p-1.5 rounded-lg border text-xs cursor-pointer ${
+                title="Toggle magnetic smart snap guides"
+                className={`p-1.5 rounded-lg border cursor-pointer ${
                   snapEnabled
                     ? "bg-pink-50 border-pink-200 text-pink-600 dark:bg-pink-900/30 dark:border-pink-800"
                     : "border-transparent text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
@@ -1010,7 +985,6 @@ export default function AboutUsStudio({
               </button>
             </div>
 
-            {/* Right: SEO, Revisions, Reset, Preview, Publish */}
             <div className="flex items-center gap-1.5 shrink-0">
               <button
                 type="button"
@@ -1029,7 +1003,7 @@ export default function AboutUsStudio({
               <button
                 type="button"
                 onClick={() => setShowResetConfirm(true)}
-                title="Reset draft to original About Us template"
+                title="Load new default About Us template into draft"
                 className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 hover:text-red-600 cursor-pointer"
               >
                 <RotateCcw size={14} />
@@ -1045,7 +1019,7 @@ export default function AboutUsStudio({
                 type="button"
                 disabled={isPublishing}
                 onClick={handlePublish}
-                className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-lg bg-[#008080] hover:bg-[#006b6b] text-white shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-lg bg-[#008080] hover:bg-[#006b6b] text-white shadow-xs disabled:opacity-50 cursor-pointer"
               >
                 {isPublishing ? (
                   <Loader2 size={14} className="animate-spin" />
@@ -1057,10 +1031,10 @@ export default function AboutUsStudio({
             </div>
           </header>
 
-          {/* MAIN 3-PANE STUDIO WORKSPACE */}
+          {/* 3-PANE WORKSPACE */}
           <div className="flex-1 flex min-h-0 overflow-hidden">
-            {/* LEFT PANEL: Add Elements & Layers */}
-            <aside className="w-60 shrink-0 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col">
+            {/* LEFT PANEL (Wider w-72 for full Layer controls) */}
+            <aside className="w-72 shrink-0 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col">
               <div className="grid grid-cols-2 border-b border-slate-200 dark:border-slate-800 p-1.5 gap-1">
                 <button
                   type="button"
@@ -1091,14 +1065,14 @@ export default function AboutUsStudio({
                   <>
                     <div className="space-y-2">
                       <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                        Drag-Free Elements
+                        Freeform Elements
                       </p>
                       <p className="text-[11px] text-slate-500">
                         Click to drop into{" "}
                         <strong className="text-slate-700 dark:text-slate-200">
                           {selectedSection?.name}
                         </strong>
-                        , then drag &amp; resize anywhere.
+                        .
                       </p>
                       <div className="grid grid-cols-2 gap-2">
                         {(
@@ -1106,11 +1080,8 @@ export default function AboutUsStudio({
                             { kind: "heading", label: "Heading", icon: Heading },
                             { kind: "paragraph", label: "Text", icon: Type },
                             { kind: "image", label: "Image", icon: ImageIcon },
-                            {
-                              kind: "stat",
-                              label: "Stat Card",
-                              icon: BarChart3,
-                            },
+                            { kind: "icon", label: "Icon", icon: Star },
+                            { kind: "stat", label: "Stat Card", icon: BarChart3 },
                             { kind: "callout", label: "Award Box", icon: Award },
                             {
                               kind: "button",
@@ -1119,9 +1090,8 @@ export default function AboutUsStudio({
                             },
                             { kind: "shape", label: "Box / Shape", icon: Square },
                             { kind: "divider", label: "Divider", icon: Minus },
-                            { kind: "icon", label: "Icon", icon: Star },
                             { kind: "video", label: "YouTube", icon: Youtube },
-                          ] as { kind: NewElementKind; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[]
+                          ] as const
                         ).map(({ kind, label, icon: Icon }) => (
                           <button
                             key={kind}
@@ -1157,22 +1127,9 @@ export default function AboutUsStudio({
                         <Sparkles size={14} /> Brand Teal Gradient Band
                       </button>
                     </div>
-
-                    <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-                      <p className="font-semibold text-slate-700 dark:text-slate-200">
-                        Tips
-                      </p>
-                      <ul className="space-y-1 list-disc pl-4">
-                        <li>Double-click text to edit inline.</li>
-                        <li>
-                          Hold <strong>Alt</strong> while dragging to bypass snap.
-                        </li>
-                        <li>Use Arrow keys to nudge 1px (Shift+Arrow = 10px).</li>
-                      </ul>
-                    </div>
                   </>
                 ) : (
-                  /* LAYERS & SECTIONS TREE */
+                  /* UPGRADED LAYERS TREE WITH FULL REORDER, TOP/BOTTOM & DELETE */
                   <div className="space-y-3">
                     {doc.sections.map((sec, sIdx) => {
                       const isSecActive = selectedSectionId === sec.id;
@@ -1185,10 +1142,11 @@ export default function AboutUsStudio({
                           key={sec.id}
                           className={`rounded-xl border overflow-hidden ${
                             isSecActive
-                              ? "border-blue-300 dark:border-blue-700"
+                              ? "border-blue-400 dark:border-blue-600"
                               : "border-slate-200 dark:border-slate-700"
                           }`}
                         >
+                          {/* Section Header with Reorder, Duplicate & Delete */}
                           <div
                             onClick={() => {
                               setSelectedSectionId(sec.id);
@@ -1196,7 +1154,7 @@ export default function AboutUsStudio({
                             }}
                             className={`px-2.5 py-2 flex items-center justify-between gap-1 cursor-pointer ${
                               isSecActive
-                                ? "bg-blue-50/80 dark:bg-blue-950/40"
+                                ? "bg-blue-50/90 dark:bg-blue-950/50"
                                 : "bg-slate-50 dark:bg-slate-800/70"
                             }`}
                           >
@@ -1211,7 +1169,8 @@ export default function AboutUsStudio({
                                   e.stopPropagation();
                                   handleReorderSection(sec.id, -1);
                                 }}
-                                className="p-0.5 text-slate-400 hover:text-slate-700 disabled:opacity-30 cursor-pointer"
+                                title="Move section up"
+                                className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white disabled:opacity-30 cursor-pointer"
                               >
                                 <ChevronUp size={13} />
                               </button>
@@ -1222,7 +1181,8 @@ export default function AboutUsStudio({
                                   e.stopPropagation();
                                   handleReorderSection(sec.id, 1);
                                 }}
-                                className="p-0.5 text-slate-400 hover:text-slate-700 disabled:opacity-30 cursor-pointer"
+                                title="Move section down"
+                                className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white disabled:opacity-30 cursor-pointer"
                               >
                                 <ChevronDown size={13} />
                               </button>
@@ -1232,7 +1192,8 @@ export default function AboutUsStudio({
                                   e.stopPropagation();
                                   handleDuplicateSection(sec.id);
                                 }}
-                                className="p-0.5 text-slate-400 hover:text-slate-700 cursor-pointer"
+                                title="Duplicate section"
+                                className="p-1 text-slate-400 hover:text-blue-600 cursor-pointer"
                               >
                                 <Copy size={12} />
                               </button>
@@ -1243,22 +1204,31 @@ export default function AboutUsStudio({
                                   e.stopPropagation();
                                   handleDeleteSection(sec.id);
                                 }}
-                                className="p-0.5 text-red-400 hover:text-red-600 disabled:opacity-30 cursor-pointer"
+                                title={
+                                  doc.sections.length <= 1
+                                    ? "At least one section is required"
+                                    : "Delete section"
+                                }
+                                className="p-1 text-slate-400 hover:text-red-600 disabled:opacity-30 cursor-pointer"
                               >
                                 <Trash2 size={12} />
                               </button>
                             </div>
                           </div>
 
+                          {/* Layer Rows with Full Z-Order, Hide, Lock, Duplicate & Delete */}
                           <div className="divide-y divide-slate-100 dark:divide-slate-800">
                             {sortedEls.length === 0 ? (
                               <p className="px-3 py-2 text-[11px] italic text-slate-400">
-                                No elements
+                                Empty section
                               </p>
                             ) : (
-                              sortedEls.map((el) => {
+                              sortedEls.map((el, eIdx) => {
                                 const frame = el[breakpoint];
                                 const isElActive = selectedElementId === el.id;
+                                const isTop = eIdx === 0;
+                                const isBottom = eIdx === sortedEls.length - 1;
+
                                 return (
                                   <div
                                     key={el.id}
@@ -1266,48 +1236,181 @@ export default function AboutUsStudio({
                                       setSelectedSectionId(sec.id);
                                       setSelectedElementId(el.id);
                                     }}
-                                    className={`px-2.5 py-1.5 flex items-center justify-between gap-1.5 text-xs cursor-pointer ${
+                                    className={`px-2.5 py-2 space-y-1.5 text-xs cursor-pointer transition-colors ${
                                       isElActive
                                         ? "bg-blue-600 text-white"
                                         : "hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
                                     }`}
                                   >
-                                    <span
-                                      className={`truncate ${
-                                        frame.hidden
-                                          ? "opacity-50 line-through"
-                                          : ""
-                                      }`}
-                                    >
-                                      {el.name}
-                                    </span>
-                                    <div className="flex items-center gap-1 shrink-0">
-                                      {el.locked && <Lock size={11} />}
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleUpdateElementFrame(
-                                            sec.id,
-                                            el.id,
-                                            { ...frame, hidden: !frame.hidden },
-                                            true
-                                          );
-                                        }}
-                                        title={
+                                    <div className="flex items-center justify-between gap-1.5">
+                                      <span
+                                        className={`truncate font-medium ${
                                           frame.hidden
-                                            ? `Show on ${breakpoint}`
-                                            : `Hide on ${breakpoint}`
-                                        }
-                                        className="p-0.5 opacity-75 hover:opacity-100 cursor-pointer"
+                                            ? "opacity-50 line-through"
+                                            : ""
+                                        }`}
                                       >
-                                        {frame.hidden ? (
-                                          <EyeOff size={12} />
-                                        ) : (
-                                          <Eye size={12} />
-                                        )}
-                                      </button>
+                                        {el.name}
+                                      </span>
+
+                                      <div className="flex items-center gap-0.5 shrink-0">
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleUpdateElement(
+                                              sec.id,
+                                              el.id,
+                                              (item) => ({
+                                                ...item,
+                                                locked: !item.locked,
+                                              })
+                                            );
+                                          }}
+                                          title={el.locked ? "Unlock" : "Lock"}
+                                          className="p-1 rounded hover:bg-black/10 cursor-pointer"
+                                        >
+                                          {el.locked ? (
+                                            <Lock
+                                              size={12}
+                                              className={
+                                                isElActive
+                                                  ? "text-amber-200"
+                                                  : "text-amber-500"
+                                              }
+                                            />
+                                          ) : (
+                                            <Unlock
+                                              size={12}
+                                              className="opacity-55"
+                                            />
+                                          )}
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleUpdateElementFrame(
+                                              sec.id,
+                                              el.id,
+                                              { ...frame, hidden: !frame.hidden },
+                                              true
+                                            );
+                                          }}
+                                          title={
+                                            frame.hidden
+                                              ? `Show on ${breakpoint}`
+                                              : `Hide on ${breakpoint}`
+                                          }
+                                          className="p-1 rounded hover:bg-black/10 cursor-pointer"
+                                        >
+                                          {frame.hidden ? (
+                                            <EyeOff size={12} />
+                                          ) : (
+                                            <Eye size={12} />
+                                          )}
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteElement(sec.id, el.id);
+                                          }}
+                                          title="Delete element"
+                                          className={`p-1 rounded cursor-pointer ${
+                                            isElActive
+                                              ? "hover:bg-red-500 text-red-100"
+                                              : "hover:bg-red-50 dark:hover:bg-red-900/30 text-red-500"
+                                          }`}
+                                        >
+                                          <Trash2 size={12} />
+                                        </button>
+                                      </div>
                                     </div>
+
+                                    {/* Z-Index & Duplicate Controls on Selected Layer */}
+                                    {isElActive && (
+                                      <div
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="flex items-center justify-between pt-1 border-t border-white/15 text-[10px]"
+                                      >
+                                        <div className="flex items-center gap-0.5">
+                                          <button
+                                            type="button"
+                                            disabled={isTop}
+                                            onClick={() =>
+                                              handleMoveElementLayer(
+                                                sec.id,
+                                                el.id,
+                                                "front"
+                                              )
+                                            }
+                                            title="Bring to Top"
+                                            className="p-1 rounded hover:bg-white/15 disabled:opacity-35 cursor-pointer"
+                                          >
+                                            <ArrowUpToLine size={12} />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            disabled={isTop}
+                                            onClick={() =>
+                                              handleMoveElementLayer(
+                                                sec.id,
+                                                el.id,
+                                                "forward"
+                                              )
+                                            }
+                                            title="Bring Forward"
+                                            className="p-1 rounded hover:bg-white/15 disabled:opacity-35 cursor-pointer"
+                                          >
+                                            <ArrowUp size={12} />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            disabled={isBottom}
+                                            onClick={() =>
+                                              handleMoveElementLayer(
+                                                sec.id,
+                                                el.id,
+                                                "backward"
+                                              )
+                                            }
+                                            title="Send Backward"
+                                            className="p-1 rounded hover:bg-white/15 disabled:opacity-35 cursor-pointer"
+                                          >
+                                            <ArrowDown size={12} />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            disabled={isBottom}
+                                            onClick={() =>
+                                              handleMoveElementLayer(
+                                                sec.id,
+                                                el.id,
+                                                "back"
+                                              )
+                                            }
+                                            title="Send to Bottom"
+                                            className="p-1 rounded hover:bg-white/15 disabled:opacity-35 cursor-pointer"
+                                          >
+                                            <ArrowDownToLine size={12} />
+                                          </button>
+                                        </div>
+
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            handleDuplicateElement(sec.id, el.id)
+                                          }
+                                          title="Duplicate element"
+                                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/15 hover:bg-white/25 cursor-pointer"
+                                        >
+                                          <Copy size={11} /> Copy
+                                        </button>
+                                      </div>
+                                    )}
                                   </div>
                                 );
                               })
@@ -1321,7 +1424,7 @@ export default function AboutUsStudio({
               </div>
             </aside>
 
-            {/* CENTER INTERACTIVE FREEFORM CANVAS */}
+            {/* CENTER CANVAS WITH REAL LIVE FOOTER */}
             <CanvasStage
               doc={doc}
               breakpoint={breakpoint}
@@ -1455,9 +1558,9 @@ export default function AboutUsStudio({
             isOpen={showResetConfirm}
             onClose={() => setShowResetConfirm(false)}
             onConfirm={handleResetDefault}
-            title="Reset draft to default template?"
-            message="This replaces your current draft with the original About Us layout. Published content stays live until you click Publish."
-            confirmLabel="Reset Draft"
+            title="Load redesigned About Us default template?"
+            message="This replaces your current draft with the 5-section modular HRMS About Us template. Your live website will not change until you click Publish, and previous published versions remain saved in History."
+            confirmLabel="Load Template into Draft"
             variant="danger"
             isBusy={isWorkingModal}
           />

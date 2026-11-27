@@ -55,6 +55,91 @@ export type ImagePositionPreset = "center" | "top" | "bottom" | "left" | "right"
 
 export type ButtonHoverEffect = "lift" | "scale" | "glow" | "none";
 
+export type FontFamilyKey =
+  | "geist"
+  | "inter"
+  | "plus-jakarta"
+  | "space-grotesk"
+  | "nunito"
+  | "playfair"
+  | "merriweather"
+  | "roboto-slab"
+  | "dancing-script"
+  | "geist-mono";
+
+export const FONT_FAMILY_OPTIONS: {
+  value: FontFamilyKey;
+  label: string;
+  category: string;
+  cssValue: string;
+}[] = [
+  {
+    value: "geist",
+    label: "Geist",
+    category: "Sans-Serif (Default)",
+    cssValue: "var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif",
+  },
+  {
+    value: "inter",
+    label: "Inter",
+    category: "Neo-Grotesque Sans",
+    cssValue: "var(--font-inter), ui-sans-serif, system-ui, sans-serif",
+  },
+  {
+    value: "plus-jakarta",
+    label: "Plus Jakarta Sans",
+    category: "Geometric Sans",
+    cssValue: "var(--font-plus-jakarta), ui-sans-serif, system-ui, sans-serif",
+  },
+  {
+    value: "space-grotesk",
+    label: "Space Grotesk",
+    category: "Display / Tech Sans",
+    cssValue: "var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif",
+  },
+  {
+    value: "nunito",
+    label: "Nunito",
+    category: "Rounded Sans",
+    cssValue: "var(--font-nunito), ui-sans-serif, system-ui, sans-serif",
+  },
+  {
+    value: "playfair",
+    label: "Playfair Display",
+    category: "Editorial Serif",
+    cssValue: "var(--font-playfair), ui-serif, Georgia, serif",
+  },
+  {
+    value: "merriweather",
+    label: "Merriweather",
+    category: "Classic Serif",
+    cssValue: "var(--font-merriweather), ui-serif, Georgia, serif",
+  },
+  {
+    value: "roboto-slab",
+    label: "Roboto Slab",
+    category: "Slab Serif",
+    cssValue: "var(--font-roboto-slab), ui-serif, Georgia, serif",
+  },
+  {
+    value: "dancing-script",
+    label: "Dancing Script",
+    category: "Script / Handwriting",
+    cssValue: "var(--font-dancing-script), cursive",
+  },
+  {
+    value: "geist-mono",
+    label: "Geist Mono",
+    category: "Monospace",
+    cssValue: "var(--font-geist-mono), ui-monospace, monospace",
+  },
+];
+
+export function resolveFontFamilyCss(key?: FontFamilyKey): string {
+  const found = FONT_FAMILY_OPTIONS.find((f) => f.value === key);
+  return found ? found.cssValue : FONT_FAMILY_OPTIONS[0].cssValue;
+}
+
 export type ElementFrame = {
   x: number;
   y: number;
@@ -67,6 +152,7 @@ export type ElementFrame = {
 export type TextElementProps = {
   tag: "h1" | "h2" | "h3" | "p";
   content: string;
+  fontFamily?: FontFamilyKey;
   textStyle?: TextTypographyShape;
   fontSize: number;
   mobileFontSize?: number;

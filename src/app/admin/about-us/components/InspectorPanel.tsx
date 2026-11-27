@@ -20,9 +20,12 @@ import {
 } from "lucide-react";
 import {
   DESKTOP_STAGE_WIDTH,
+  FONT_FAMILY_OPTIONS,
   MOBILE_STAGE_WIDTH,
   SECTION_GRADIENT_PRESETS,
+  resolveFontFamilyCss,
   type Breakpoint,
+  type FontFamilyKey,
   type ButtonHoverEffect,
   type CanvasElement,
   type ElementFrame,
@@ -504,6 +507,53 @@ export default function InspectorPanel({
             <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 block">
               Text &amp; Typography Shape
             </span>
+
+            {/* 10 Popular 2020s Web Typefaces */}
+            <div className="space-y-1.5">
+              <label className="block space-y-1">
+                <span className="text-[11px] font-medium text-slate-500">
+                  Typography / Font Family
+                </span>
+                <select
+                  value={selectedElement.props.fontFamily || "geist"}
+                  onChange={(e) =>
+                    onUpdateElement(
+                      selectedSection.id,
+                      selectedElement.id,
+                      (el) =>
+                        el.type === "text"
+                          ? {
+                              ...el,
+                              props: {
+                                ...el.props,
+                                fontFamily: e.target.value as FontFamilyKey,
+                              },
+                            }
+                          : el
+                    )
+                  }
+                  className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                >
+                  {FONT_FAMILY_OPTIONS.map((f) => (
+                    <option key={f.value} value={f.value}>
+                      {f.label} — {f.category}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {/* Live Typeface Specimen Preview */}
+              <div
+                className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950/60 text-sm text-slate-800 dark:text-slate-100 truncate"
+                style={{
+                  fontFamily: resolveFontFamilyCss(
+                    selectedElement.props.fontFamily
+                  ),
+                }}
+              >
+                Aa Bb Cc · Kaizen HRMS 1997
+              </div>
+            </div>
 
             <label className="block space-y-1">
               <span className="text-[11px] font-medium text-slate-500">

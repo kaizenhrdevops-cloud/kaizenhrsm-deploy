@@ -19,6 +19,8 @@ import {
 import type { AboutPageRevisionSummary } from "../actions";
 import FreeformPageRenderer from "@/components/page-builder/FreeformPageRenderer";
 import SettingsImageUploader from "@/components/admin/SettingsImageUploader";
+import Footer from "@/components/layout/Footer";
+import { useNavItems } from "@/components/layout/NavProvider";
 
 export function PreviewModal({
   isOpen,
@@ -34,6 +36,7 @@ export function PreviewModal({
   const [device, setDevice] = useState<"desktop" | "tablet" | "mobile">(
     "desktop"
   );
+  const navItems = useNavItems();
 
   if (!isOpen) return null;
 
@@ -87,20 +90,19 @@ export function PreviewModal({
         <div
           className={`${frameWidthClass} bg-white rounded-xl shadow-2xl overflow-y-auto overflow-x-hidden border border-slate-700`}
         >
-          {/* Simulated Public Navbar */}
+          {/* Synced Public Navbar Shell */}
           <div className="h-20 px-6 bg-white border-b border-slate-100 flex items-center justify-between">
             <span className="text-3xl font-bold text-[#008080] tracking-tight">
               kaizen
             </span>
             {device !== "mobile" && (
               <div className="flex items-center gap-5 text-xs font-semibold text-slate-600">
-                <span>HRMS</span>
-                <span>Resources</span>
-                <span>Blog &amp; Articles</span>
-                <span>Company</span>
+                {navItems.map((item) => (
+                  <span key={item.key}>{item.label}</span>
+                ))}
               </div>
             )}
-            <span className="px-4 py-2 rounded-full text-xs font-semibold bg-yellow-400 text-slate-900">
+            <span className="px-4 py-2 rounded-full text-xs font-semibold bg-gradient-to-r from-yellow-400 to-yellow-500 text-slate-900">
               Contact Us
             </span>
           </div>
@@ -111,9 +113,9 @@ export function PreviewModal({
             forcedBreakpoint={device === "mobile" ? "mobile" : "desktop"}
           />
 
-          {/* Simulated Footer Bar */}
-          <div className="bg-[#008080] text-white/80 text-center py-8 text-xs">
-            Public Footer renders here on /company/about-us
+          {/* Real Live Public Footer */}
+          <div className="pointer-events-none select-none">
+            <Footer />
           </div>
         </div>
       </div>
