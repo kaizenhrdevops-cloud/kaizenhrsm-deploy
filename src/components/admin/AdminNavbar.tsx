@@ -1,3 +1,4 @@
+// src/components/admin/AdminNavbar.tsx
 "use client";
 
 import { getBrowserClient } from "@/lib/client";

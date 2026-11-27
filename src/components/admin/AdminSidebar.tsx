@@ -20,6 +20,7 @@ import {
   Send, // <-- 1. IMPORT THE NEW ICON
   PanelLeftClose,
   PanelTop,
+  Wand2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
@@ -171,6 +172,14 @@ export default function AdminSidebar({
             <SectionHeader title="Content" />
             <div className="space-y-1">
               <NavLink href="/admin/blog" icon={FileText} label="Blog Posts" />
+              {/* About Us Studio is restricted to super admins. */}
+              {isSuperAdmin && (
+                <NavLink
+                  href="/admin/about-us"
+                  icon={Wand2}
+                  label="About Us"
+                />
+              )}
               <NavLink href="/admin/hrms" icon={Layers} label="HRMS Modules" />
               <NavLink href="/admin/contacts" icon={Mail} label="Contacts" />
               <NavLink

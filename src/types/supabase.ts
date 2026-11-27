@@ -726,6 +726,128 @@ export type Database = {
           },
         ]
       }
+      site_page_revisions: {
+        Row: {
+          change_summary: string | null
+          created_at: string | null
+          created_by: string | null
+          doc: Json
+          id: string
+          page_slug: string
+          revision_number: number
+          seo_meta_description: string | null
+          seo_meta_title: string | null
+          seo_og_image: string | null
+        }
+        Insert: {
+          change_summary?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          doc: Json
+          id?: string
+          page_slug: string
+          revision_number: number
+          seo_meta_description?: string | null
+          seo_meta_title?: string | null
+          seo_og_image?: string | null
+        }
+        Update: {
+          change_summary?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          doc?: Json
+          id?: string
+          page_slug?: string
+          revision_number?: number
+          seo_meta_description?: string | null
+          seo_meta_title?: string | null
+          seo_og_image?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_page_revisions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "site_page_revisions_page_slug_fkey"
+            columns: ["page_slug"]
+            isOneToOne: false
+            referencedRelation: "site_pages"
+            referencedColumns: ["slug"]
+          },
+        ]
+      }
+      site_pages: {
+        Row: {
+          created_at: string | null
+          draft_doc: Json
+          draft_seo_meta_description: string | null
+          draft_seo_meta_title: string | null
+          draft_seo_og_image: string | null
+          has_unpublished_changes: boolean
+          last_autosaved_at: string | null
+          published_at: string | null
+          published_doc: Json
+          seo_meta_description: string | null
+          seo_meta_title: string | null
+          seo_og_image: string | null
+          slug: string
+          status: string
+          title: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          draft_doc: Json
+          draft_seo_meta_description?: string | null
+          draft_seo_meta_title?: string | null
+          draft_seo_og_image?: string | null
+          has_unpublished_changes?: boolean
+          last_autosaved_at?: string | null
+          published_at?: string | null
+          published_doc: Json
+          seo_meta_description?: string | null
+          seo_meta_title?: string | null
+          seo_og_image?: string | null
+          slug: string
+          status?: string
+          title: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          draft_doc?: Json
+          draft_seo_meta_description?: string | null
+          draft_seo_meta_title?: string | null
+          draft_seo_og_image?: string | null
+          has_unpublished_changes?: boolean
+          last_autosaved_at?: string | null
+          published_at?: string | null
+          published_doc?: Json
+          seo_meta_description?: string | null
+          seo_meta_title?: string | null
+          seo_og_image?: string | null
+          slug?: string
+          status?: string
+          title?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_pages_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string | null

@@ -105,7 +105,8 @@ export async function middleware(req: NextRequest) {
 
     if (
       pathname.startsWith("/admin/users") ||
-      pathname.startsWith("/admin/navigation")
+      pathname.startsWith("/admin/navigation") ||
+      pathname.startsWith("/admin/about-us")
     ) {
       if (profile.role !== "super_admin") {
         return NextResponse.redirect(new URL("/admin/dashboard", req.url));
